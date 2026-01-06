@@ -14,6 +14,9 @@ const Dashboard = () => import("@/views/dashboard/Dashboard.vue");
 // Sky 페이지
 const Sky = () => import("@/views/test/Sky.vue");
 
+// Main 페이지
+const Main = () => import("@/views/test/Main.vue");
+
 // 에러 페이지
 const NotFound = () => import("@/views/error/NotFound.vue");
 
@@ -44,8 +47,8 @@ const baseRoutes: RouteRecordRaw[] = [
   },
   {
     path: "/",
-    name: "Sky",
-    component: Sky,
+    name: "Main",
+    component: Main,
     meta: {
       requiresAuth: false,
       titleKey: "pageTitles.sky",
