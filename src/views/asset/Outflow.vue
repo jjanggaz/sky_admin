@@ -1,0 +1,3135 @@
+<template>
+  <div class="outflow">
+    <div class="page-content">
+      <div class="action-bar tab-action-bar">
+        <div class="swiper-bar">
+          <div class="tabs-wrapper">
+            <button
+              class="btn-scroll left"
+              :disabled="!canScrollLeft"
+              @click="scrollTabs(-1)"
+            >
+              <img
+                src="/images/icons/leftArrow.svg"
+                :alt="t('common.previous')"
+              />
+            </button>
+            <div class="tabs" ref="tabsContainer" @scroll="updateScrollButtons">
+              <div
+                v-for="(tab, idx) in tabs"
+                :key="tab.flow_type_id || tab.name"
+                :class="['tab', { active: activeTab === idx }]"
+                :style="{
+                  backgroundColor: tab.symbol_color || '#f0f0f0',
+                  color: getTextColor(tab.symbol_color || '#f0f0f0'),
+                }"
+                @click="onTabClick(idx)"
+                :title="tab.flow_type_code ? tab.flow_type_code : tab.name"
+              >
+                {{ tab.name }}
+              </div>
+            </div>
+            <button
+              class="btn-scroll right"
+              :disabled="!canScrollRight"
+              @click="scrollTabs(1)"
+            >
+              <img src="/images/icons/rightArrow.svg" :alt="t('common.next')" />
+            </button>
+          </div>
+        </div>
+
+        <div class="tab-buttons">
+          <div class="btns">
+            <button class="btn btn-create" @click="openModal">
+              {{ t("outflow.registerNew") }}
+            </button>
+            <button class="btn btn-update" @click="openUpdateModal">
+              {{ t("outflow.update") }}
+            </button>
+            <button
+              class="btn btn-delete"
+              @click="handleDeleteFlowType"
+              :disabled="isDeleting || tabs.length === 0"
+            >
+              {{ isDeleting ? t("common.processing") : t("common.delete") }}
+            </button>
+            <button
+              class="btn btn-code-management"
+              @click="openCodeManagementModal"
+            >
+              {{ t("outflow.codeManagement") }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content">
+        <div class="content-wrapper">
+          <div class="tab-content-metric">
+            <div class="section-header">
+              <h3>Metric</h3>
+              <span v-if="latestMetricFormula" class="applied-formula">
+                [ {{ t("outflow.appliedFormula") }} :
+                {{ latestMetricFormula }} ]
+              </span>
+            </div>
+            <div v-if="activeTab >= 0" class="content">
+              <DataTable
+                :columns="gridColumns"
+                :data="currentMetricGridData"
+                maxHeight="500px"
+                :stickyHeader="true"
+              >
+                <template
+                  #cell-item="{ item, index }: { item: GridRow, index: number }"
+                >
+                  <select
+                    v-if="item.parameter_name === ''"
+                    v-model="item.parameter_code"
+                    @change="
+                      onParameterSelect(item.parameter_code, index, true, false)
+                    "
+                    class="form-input"
+                  >
+                    <option value="">{{ t("common.select") }}</option>
+                    <option
+                      v-for="param in outflowStore.waterQualityParameters"
+                      :key="param.parameter_id"
+                      :value="param.parameter_code"
+                    >
+                      {{ param.parameter_name }}
+                    </option>
+                  </select>
+                  <span v-else>{{ item.parameter_name }}</span>
+                </template>
+                <template #cell-is_active="{ item }: { item: GridRow }">
+                  <span
+                    class="check-edit"
+                    :class="{ on: item.is_active, off: !item.is_active }"
+                  ></span>
+                </template>
+                <template #cell-is_required="{ item }: { item: GridRow }">
+                  <span
+                    class="check-edit required"
+                    :class="{ on: item.is_required, off: !item.is_required }"
+                  ></span>
+                </template>
+              </DataTable>
+
+              <div class="action-bar" style="margin: 22px 0px 12px">
+                <div class="title">
+                  <h4>{{ t("outflow.formulaList") }}</h4>
+                </div>
+                <div class="btns">
+                  <button
+                    class="btn btn-delete sm"
+                    @click="deleteMetricFormula"
+                  >
+                    {{ t("outflow.delete") }}
+                  </button>
+                </div>
+              </div>
+
+              <DataTable
+                :columns="gridColumns2"
+                :data="currentGridData2"
+                maxHeight="500px"
+                :stickyHeader="true"
+                :selectable="true"
+                selectionMode="single"
+                :showSelectAll="false"
+                :selectHeaderText="t('common.selectColumn')"
+                :selectedItems="selectedMetricFormula"
+                @selection-change="onMetricFormulaSelectionChange"
+              >
+                <template #cell-formula="{ value, item }">
+                  <a
+                    v-if="item.download_url"
+                    :href="item.download_url"
+                    target="_blank"
+                    class="formula-link"
+                  >
+                    {{ value }}
+                  </a>
+                  <span v-else>{{ value }}</span>
+                </template>
+              </DataTable>
+            </div>
+          </div>
+
+          <div class="tab-content-uscs">
+            <div class="section-header">
+              <h3>Uscs</h3>
+              <span v-if="latestUscsFormula" class="applied-formula">
+                [ {{ t("outflow.appliedFormula") }} : {{ latestUscsFormula }} ]
+              </span>
+            </div>
+            <div v-if="activeTab >= 0" class="content">
+              <DataTable
+                :columns="gridColumns"
+                :data="currentUscsGridData"
+                maxHeight="500px"
+                :stickyHeader="true"
+              >
+                <template
+                  #cell-item="{ item, index }: { item: GridRow, index: number }"
+                >
+                  <select
+                    v-if="item.parameter_name === ''"
+                    v-model="item.parameter_code"
+                    @change="
+                      onParameterSelect(
+                        item.parameter_code,
+                        index,
+                        false,
+                        false
+                      )
+                    "
+                    class="form-input"
+                  >
+                    <option value="">{{ t("common.select") }}</option>
+                    <option
+                      v-for="param in outflowStore.waterQualityParameters"
+                      :key="param.parameter_id"
+                      :value="param.parameter_code"
+                    >
+                      {{ param.parameter_name }}
+                    </option>
+                  </select>
+                  <span v-else>{{ item.parameter_name }}</span>
+                </template>
+                <template #cell-is_active="{ item }: { item: GridRow }">
+                  <span
+                    class="check-edit"
+                    :class="{ on: item.is_active, off: !item.is_active }"
+                  ></span>
+                </template>
+                <template #cell-is_required="{ item }: { item: GridRow }">
+                  <span
+                    class="check-edit required"
+                    :class="{ on: item.is_required, off: !item.is_required }"
+                  ></span>
+                </template>
+              </DataTable>
+
+              <div class="action-bar" style="margin: 22px 0px 12px">
+                <div class="title">
+                  <h4>{{ t("outflow.formulaList") }}</h4>
+                </div>
+                <div class="btns">
+                  <button class="btn btn-delete sm" @click="deleteUscsFormula">
+                    {{ t("outflow.delete") }}
+                  </button>
+                </div>
+              </div>
+
+              <DataTable
+                :columns="gridColumns2"
+                :data="currentUscsGridData2"
+                maxHeight="500px"
+                :stickyHeader="true"
+                :selectable="true"
+                selectionMode="single"
+                :showSelectAll="false"
+                :selectHeaderText="t('common.selectColumn')"
+                :selectedItems="selectedUscsFormula"
+                @selection-change="onUscsFormulaSelectionChange"
+              >
+                <template #cell-formula="{ value, item }">
+                  <a
+                    v-if="item.download_url"
+                    :href="item.download_url"
+                    target="_blank"
+                    class="formula-link"
+                  >
+                    {{ value }}
+                  </a>
+                  <span v-else>{{ value }}</span>
+                </template>
+              </DataTable>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 신규등록 -->
+    <div v-if="isModalOpen" class="modal-overlay" @click="closeModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>{{ t("outflow.registerNew") }}</h3>
+          <button
+            class="close-btn"
+            @click="closeModal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <!-- 첫 번째 줄: 유출종류명 국문, 유출종류명 영문, 비고 -->
+          <dl class="column-regist">
+            <!-- wai_lang이 en이면 영문 필드를 먼저 표시 -->
+            <template v-if="isEnglish">
+              <div class="column-item">
+                <dt class="essential">{{ t("outflow.typeNameEn") }}</dt>
+                <dd>
+                  <select
+                    v-model="selectedOutputType"
+                    @change="onOutputTypeChange"
+                    class="form-input"
+                    required
+                  >
+                    <option value="">{{ t("common.select") }}</option>
+                    <option
+                      v-for="code in outflowStore.commonCodes"
+                      :key="code.code_id"
+                      :value="code.code_key"
+                    >
+                      {{ code.code_value_en || code.code_value }}
+                    </option>
+                  </select>
+                </dd>
+              </div>
+              <div class="column-item">
+                <dt class="essential">{{ t("outflow.typeNameKo") }}</dt>
+                <dd>
+                  <input
+                    type="text"
+                    v-model="newOutflowTypeName"
+                    :placeholder="t('placeholder.outflowTypeName')"
+                    class="form-input"
+                    readonly
+                    disabled
+                  />
+                </dd>
+              </div>
+            </template>
+            <!-- wai_lang이 en이 아니면 기존 순서대로 -->
+            <template v-else>
+              <div class="column-item">
+                <dt class="essential">{{ t("outflow.typeNameKo") }}</dt>
+                <dd>
+                  <select
+                    v-model="selectedOutputType"
+                    @change="onOutputTypeChange"
+                    class="form-input"
+                    required
+                  >
+                    <option value="">{{ t("common.select") }}</option>
+                    <option
+                      v-for="code in outflowStore.commonCodes"
+                      :key="code.code_id"
+                      :value="code.code_key"
+                    >
+                      {{ code.code_value }}
+                    </option>
+                  </select>
+                </dd>
+              </div>
+              <div class="column-item">
+                <dt class="essential">{{ t("outflow.typeNameEn") }}</dt>
+                <dd>
+                  <input
+                    type="text"
+                    v-model="newOutflowTypeNameEn"
+                    :placeholder="t('placeholder.outflowTypeName')"
+                    class="form-input"
+                    readonly
+                    disabled
+                  />
+                </dd>
+              </div>
+            </template>
+            <div class="column-item">
+              <dt>{{ t("common.etc") }}</dt>
+              <dd>
+                <input
+                  type="text"
+                  v-model="uploadForm.title"
+                  class="form-input"
+                />
+              </dd>
+            </div>
+          </dl>
+          <!-- 두 번째 줄: 심볼색상, 파일 업로드 -->
+          <dl class="column-regist">
+            <div class="column-item">
+              <dt>{{ t("outflow.symbolColor") }}</dt>
+              <dd>
+                <div class="color-picker-container">
+                  <input
+                    type="color"
+                    v-model="selectedColor"
+                    class="color-input"
+                    @change="updateColor"
+                  />
+                  <span class="color-text">{{ selectedColor }}</span>
+                </div>
+              </dd>
+            </div>
+            <div class="column-item">
+              <dt>{{ t("common.symbolUpload") }}</dt>
+              <dd>
+                <div class="file-upload-row">
+                  <label class="btn btn-file">
+                    {{ t("common.selectFile") }}
+                    <input
+                      type="file"
+                      @change="handleFileUpload"
+                      accept=".svg"
+                      style="display: none"
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    :value="
+                      uploadForm.file
+                        ? uploadForm.file.name
+                        : uploadForm.existingFileName || ''
+                    "
+                    :placeholder="t('placeholder.selectFile')"
+                    readonly
+                    class="file-name-input"
+                  />
+                </div>
+              </dd>
+            </div>
+            <div class="column-item">
+              <dt>{{ t("common.symbolImage") }}</dt>
+              <dd>
+                <div class="symbol-image-preview">
+                  <span v-if="!symbolImageContent" class="no-symbol-message">{{
+                    t("common.noAttachedSymbolImage")
+                  }}</span>
+                  <div v-else v-html="symbolImageContent"></div>
+                </div>
+              </dd>
+            </div>
+          </dl>
+
+          <div class="modal-content-wrapper">
+            <div class="modal-tab-content-metric">
+              <div class="section-header">
+                <h3>Metric</h3>
+              </div>
+              <dl class="column-regist">
+                <dt class="essential">{{ t("outflow.uploadFormula") }}</dt>
+                <dd>
+                  <div class="file-upload-row" id="metricFileUpload">
+                    <label class="btn btn-file">
+                      {{ t("common.selectFile") }}
+                      <input
+                        type="file"
+                        @change="handleMetricFileUpload"
+                        accept=".py"
+                        style="display: none"
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      :value="metricFileName || ''"
+                      :placeholder="t('placeholder.selectFile')"
+                      readonly
+                      class="file-name-input"
+                    />
+                  </div>
+                </dd>
+              </dl>
+
+              <DataTable
+                :columns="gridColumns"
+                :data="
+                  metricFileData.length > 0 ? metricFileData : currentGridData
+                "
+                maxHeight="300px"
+                :stickyHeader="true"
+              >
+                <template
+                  #cell-item="{ item, index }: { item: GridRow, index: number }"
+                >
+                  <select
+                    v-if="item.parameter_name === ''"
+                    v-model="item.parameter_code"
+                    @change="
+                      onParameterSelect(item.parameter_code, index, true, true)
+                    "
+                    class="form-input"
+                  >
+                    <option value="">{{ t("common.select") }}</option>
+                    <option
+                      v-for="param in outflowStore.waterQualityParameters"
+                      :key="param.parameter_id"
+                      :value="param.parameter_code"
+                    >
+                      {{ param.parameter_name }}
+                    </option>
+                  </select>
+                  <span v-else>{{ item.parameter_name }}</span>
+                </template>
+                <template #cell-is_active="{ item }: { item: GridRow }">
+                  <input type="checkbox" v-model="item.is_active" />
+                </template>
+                <template #cell-is_required="{ item }: { item: GridRow }">
+                  <input type="checkbox" v-model="item.is_required" disabled />
+                </template>
+              </DataTable>
+            </div>
+
+            <div class="modal-tab-content-uscs">
+              <div class="section-header">
+                <h3>Uscs</h3>
+              </div>
+              <dl class="column-regist">
+                <dt class="essential">{{ t("outflow.uploadFormula") }}</dt>
+                <dd>
+                  <div class="file-upload-row" id="uscsFileUpload">
+                    <label class="btn btn-file">
+                      {{ t("common.selectFile") }}
+                      <input
+                        type="file"
+                        @change="handleUscsFileUpload"
+                        accept=".py"
+                        style="display: none"
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      :value="uscsFileName || ''"
+                      :placeholder="t('placeholder.selectFile')"
+                      readonly
+                      class="file-name-input"
+                    />
+                  </div>
+                </dd>
+              </dl>
+
+              <DataTable
+                :columns="gridColumns"
+                :data="uscsFileData.length > 0 ? uscsFileData : currentGridData"
+                maxHeight="300px"
+                :stickyHeader="true"
+              >
+                <template
+                  #cell-item="{ item, index }: { item: GridRow, index: number }"
+                >
+                  <select
+                    v-if="item.parameter_name === ''"
+                    v-model="item.parameter_code"
+                    @change="
+                      onParameterSelect(item.parameter_code, index, false, true)
+                    "
+                    class="form-input"
+                  >
+                    <option value="">{{ t("common.select") }}</option>
+                    <option
+                      v-for="param in outflowStore.waterQualityParameters"
+                      :key="param.parameter_id"
+                      :value="param.parameter_code"
+                    >
+                      {{ param.parameter_name }}
+                    </option>
+                  </select>
+                  <span v-else>{{ item.parameter_name }}</span>
+                </template>
+                <template #cell-is_active="{ item }: { item: GridRow }">
+                  <input type="checkbox" v-model="item.is_active" />
+                </template>
+                <template #cell-is_required="{ item }: { item: GridRow }">
+                  <input type="checkbox" v-model="item.is_required" disabled />
+                </template>
+              </DataTable>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer lg">
+          <button
+            class="btn btn-confirm"
+            @click="createNewTab"
+            :disabled="isCreating"
+          >
+            {{ isCreating ? t("common.processing") : t("common.register") }}
+          </button>
+          <button class="btn btn-cancel" @click="closeModal">
+            {{ t("common.cancel") }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 수정 -->
+    <div
+      v-if="isUpdateModalOpen"
+      class="modal-overlay"
+      @click="closeUpdateModal"
+    >
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>{{ t("outflow.update") }}</h3>
+          <button
+            class="close-btn"
+            @click="closeUpdateModal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <!-- 첫 번째 줄: 유출종류명 국문, 유출종류명 영문, 비고 -->
+          <dl class="column-regist">
+            <!-- wai_lang이 en이면 영문 필드를 먼저 표시 -->
+            <template v-if="isEnglish">
+              <div class="column-item">
+                <dt class="essential">{{ t("outflow.typeNameEn") }}</dt>
+                <dd>
+                  <select
+                    v-model="selectedOutputType"
+                    @change="onOutputTypeChange"
+                    class="form-input"
+                    required
+                    disabled
+                  >
+                    <option value="">선택</option>
+                    <option
+                      v-for="code in outflowStore.commonCodes"
+                      :key="code.code_id"
+                      :value="code.code_key"
+                    >
+                      {{ code.code_value_en || code.code_value }}
+                    </option>
+                  </select>
+                </dd>
+              </div>
+              <div class="column-item">
+                <dt class="essential">{{ t("outflow.typeNameKo") }}</dt>
+                <dd>
+                  <input
+                    type="text"
+                    v-model="newOutflowTypeName"
+                    :placeholder="t('placeholder.outflowTypeName')"
+                    class="form-input"
+                    readonly
+                    disabled
+                  />
+                </dd>
+              </div>
+            </template>
+            <!-- wai_lang이 en이 아니면 기존 순서대로 -->
+            <template v-else>
+              <div class="column-item">
+                <dt class="essential">{{ t("outflow.typeNameKo") }}</dt>
+                <dd>
+                  <select
+                    v-model="selectedOutputType"
+                    @change="onOutputTypeChange"
+                    class="form-input"
+                    required
+                    disabled
+                  >
+                    <option value="">선택</option>
+                    <option
+                      v-for="code in outflowStore.commonCodes"
+                      :key="code.code_id"
+                      :value="code.code_key"
+                    >
+                      {{ code.code_value }}
+                    </option>
+                  </select>
+                </dd>
+              </div>
+              <div class="column-item">
+                <dt class="essential">{{ t("outflow.typeNameEn") }}</dt>
+                <dd>
+                  <input
+                    type="text"
+                    v-model="newOutflowTypeNameEn"
+                    :placeholder="t('placeholder.outflowTypeName')"
+                    class="form-input"
+                    readonly
+                    disabled
+                  />
+                </dd>
+              </div>
+            </template>
+            <div class="column-item">
+              <dt>{{ t("common.etc") }}</dt>
+              <dd>
+                <input
+                  type="text"
+                  v-model="uploadForm.title"
+                  class="form-input"
+                />
+              </dd>
+            </div>
+          </dl>
+          <!-- 두 번째 줄: 심볼색상, 파일 업로드, 심볼이미지 -->
+          <dl class="column-regist">
+            <div class="column-item">
+              <dt>{{ t("outflow.symbolColor") }}</dt>
+              <dd>
+                <div class="color-picker-container">
+                  <input
+                    type="color"
+                    v-model="selectedColor"
+                    class="color-input"
+                    @change="updateColor"
+                  />
+                  <span class="color-text">{{ selectedColor }}</span>
+                </div>
+              </dd>
+            </div>
+            <div class="column-item">
+              <dt>{{ t("common.symbolUpload") }}</dt>
+              <dd>
+                <div class="file-upload-row">
+                  <label class="btn btn-file">
+                    {{ t("common.selectFile") }}
+                    <input
+                      type="file"
+                      @change="handleFileUpload"
+                      accept=".svg"
+                      style="display: none"
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    :value="
+                      uploadForm.file
+                        ? uploadForm.file.name
+                        : uploadForm.existingFileName || ''
+                    "
+                    :placeholder="t('placeholder.selectFile')"
+                    readonly
+                    class="file-name-input"
+                  />
+                </div>
+              </dd>
+            </div>
+            <div class="column-item">
+              <dt>{{ t("common.symbolImage") }}</dt>
+              <dd>
+                <div class="symbol-image-preview">
+                  <div class="symbol-content">
+                    <span v-if="!symbolImageContent" class="no-symbol-message">
+                      {{ t("common.noSymbolImage") }}
+                    </span>
+                    <div v-else v-html="symbolImageContent"></div>
+                  </div>
+                  <button
+                    v-if="symbolImageContent && isExistingSymbol"
+                    class="delete-symbol-btn"
+                    @click="handleDeleteSymbol"
+                    :title="t('common.deleteSymbol')"
+                  ></button>
+                </div>
+              </dd>
+            </div>
+          </dl>
+
+          <div class="modal-content-wrapper">
+            <div class="modal-tab-content-metric">
+              <div class="section-header">
+                <h3>Metric</h3>
+              </div>
+              <dl class="column-regist">
+                <dt class="essential">{{ t("outflow.uploadFormula") }}</dt>
+                <dd>
+                  <div class="file-upload-row" id="updateMetricFileUpload">
+                    <label class="btn btn-file">
+                      {{ t("common.selectFile") }}
+                      <input
+                        type="file"
+                        @change="handleUpdateMetricFileUpload"
+                        accept=".py"
+                        style="display: none"
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      :value="updateMetricFileName || ''"
+                      :placeholder="t('placeholder.selectFile')"
+                      readonly
+                      class="file-name-input"
+                    />
+                  </div>
+                </dd>
+              </dl>
+
+              <DataTable
+                :columns="gridColumns"
+                :data="
+                  isUpdateMetricFileAttached
+                    ? updateMetricFileData
+                    : currentMetricGridData
+                "
+                maxHeight="300px"
+                :stickyHeader="true"
+              >
+                <template
+                  #cell-item="{ item, index }: { item: GridRow, index: number }"
+                >
+                  <select
+                    v-if="item.parameter_name === ''"
+                    v-model="item.parameter_code"
+                    @change="
+                      onUpdateParameterSelect(
+                        item.parameter_code,
+                        index,
+                        true,
+                        true
+                      )
+                    "
+                    class="form-input"
+                  >
+                    <option value="">{{ t("common.select") }}</option>
+                    <option
+                      v-for="param in outflowStore.waterQualityParameters"
+                      :key="param.parameter_id"
+                      :value="param.parameter_code"
+                    >
+                      {{ param.parameter_name }}
+                    </option>
+                  </select>
+                  <span v-else>{{ item.parameter_name }}</span>
+                </template>
+                <template #cell-is_active="{ item }: { item: GridRow }">
+                  <input type="checkbox" v-model="item.is_active" />
+                </template>
+                <template #cell-is_required="{ item }: { item: GridRow }">
+                  <input type="checkbox" v-model="item.is_required" disabled />
+                </template>
+              </DataTable>
+            </div>
+
+            <div class="modal-tab-content-uscs">
+              <div class="section-header">
+                <h3>Uscs</h3>
+              </div>
+              <dl class="column-regist">
+                <dt class="essential">{{ t("outflow.uploadFormula") }}</dt>
+                <dd>
+                  <div class="file-upload-row" id="updateUscsFileUpload">
+                    <label class="btn btn-file">
+                      {{ t("common.selectFile") }}
+                      <input
+                        type="file"
+                        @change="handleUpdateUscsFileUpload"
+                        accept=".py"
+                        style="display: none"
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      :value="updateUscsFileName || ''"
+                      :placeholder="t('placeholder.selectFile')"
+                      readonly
+                      class="file-name-input"
+                    />
+                  </div>
+                </dd>
+              </dl>
+
+              <DataTable
+                :columns="gridColumns"
+                :data="
+                  isUpdateUscsFileAttached
+                    ? updateUscsFileData
+                    : currentUscsGridData
+                "
+                maxHeight="300px"
+                :stickyHeader="true"
+              >
+                <template
+                  #cell-item="{ item, index }: { item: GridRow, index: number }"
+                >
+                  <select
+                    v-if="item.parameter_name === ''"
+                    v-model="item.parameter_code"
+                    @change="
+                      onUpdateParameterSelect(
+                        item.parameter_code,
+                        index,
+                        false,
+                        true
+                      )
+                    "
+                    class="form-input"
+                  >
+                    <option value="">{{ t("common.select") }}</option>
+                    <option
+                      v-for="param in outflowStore.waterQualityParameters"
+                      :key="param.parameter_id"
+                      :value="param.parameter_code"
+                    >
+                      {{ param.parameter_name }}
+                    </option>
+                  </select>
+                  <span v-else>{{ item.parameter_name }}</span>
+                </template>
+                <template #cell-is_active="{ item }: { item: GridRow }">
+                  <input type="checkbox" v-model="item.is_active" />
+                </template>
+                <template #cell-is_required="{ item }: { item: GridRow }">
+                  <input type="checkbox" v-model="item.is_required" disabled />
+                </template>
+              </DataTable>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer lg">
+          <button
+            class="btn btn-confirm"
+            @click="updateTab"
+            :disabled="isUpdating"
+          >
+            {{ isUpdating ? t("common.processing") : t("common.save") }}
+          </button>
+          <button class="btn btn-cancel" @click="closeUpdateModal">
+            {{ t("common.cancel") }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 코드 관리 모달 -->
+    <div
+      v-if="isCodeManagementModalOpen"
+      class="modal-overlay"
+      @click="closeCodeManagementModal"
+    >
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>{{ t("outflow.codeManagement") }}</h3>
+          <button
+            class="close-btn"
+            @click="closeCodeManagementModal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <WaterCodeManagement :flowDirection="'EFFLUENT'" />
+        </div>
+        <div class="modal-footer lg">
+          <button class="btn btn-cancel" @click="closeCodeManagementModal">
+            {{ t("common.close") }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, nextTick, computed, onMounted, onBeforeUnmount } from "vue";
+import DataTable, { type TableColumn } from "@/components/common/DataTable.vue";
+import { useI18n } from "vue-i18n";
+import { useTranslateMessage } from "@/utils/translateMessage";
+import { useInflowStore } from "@/stores/inflow";
+import WaterCodeManagement from "./components/WaterCodeManagement.vue";
+
+const { t } = useI18n();
+const outflowStore = useInflowStore();
+
+// 백엔드에서 반환되는 메시지가 다국어 키인 경우 번역 처리
+const translateMessage = useTranslateMessage();
+
+// wai_lang이 en인지 확인
+const isEnglish = computed(() => localStorage.getItem("wai_lang") === "en");
+const newOutflowTypeName = ref("");
+const newOutflowTypeNameEn = ref("");
+const selectedOutputType = ref(""); // 선택된 유출종류 코드
+
+// 색상 선택 관련 상태
+const selectedColor = ref("#3b82f6"); // 기본 파란색
+const showColorPicker = ref(false);
+const symbolImageContent = ref(""); // 심볼 이미지 콘텐츠
+
+// 로딩 상태
+const isCreating = ref(false);
+const isUpdating = ref(false);
+const isDeleting = ref(false);
+
+// 수정 모달 관련 상태
+const isUpdateModalOpen = ref(false);
+
+// 컴포넌트 마운트 시 유출종류 데이터 로드
+onMounted(async () => {
+  await loadWaterFlowTypes();
+  await loadOutputTypes(); // 공통코드 로드 추가
+  await loadWaterQualityParameters(); // 수질 파라미터 로드 추가
+  // 초기 렌더 후 스크롤 버튼 상태 계산 및 리사이즈 관찰 시작
+  nextTick(() => {
+    updateScrollButtons();
+    if (tabsContainer.value && "ResizeObserver" in window) {
+      resizeObserver.value = new ResizeObserver(() => {
+        updateScrollButtons();
+      });
+      resizeObserver.value.observe(tabsContainer.value);
+    }
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+  });
+});
+
+// 유출 종류 공통코드 로드
+const loadOutputTypes = async () => {
+  try {
+    await outflowStore.fetchCommonCodes("INP_OUTP", "OUT_TYPE", true);
+  } catch (error) {
+    console.error("유출 종류 공통코드 로드 실패:", error);
+  }
+};
+
+// 수질 파라미터 로드
+const loadWaterQualityParameters = async () => {
+  try {
+    if (typeof outflowStore.fetchWaterQualityParameters !== "function") {
+      console.error("fetchWaterQualityParameters가 함수가 아닙니다!");
+
+      return;
+    }
+
+    await outflowStore.fetchWaterQualityParameters("EFFLUENT");
+  } catch (error) {
+    console.error("수질 파라미터 로드 실패:", error);
+  }
+};
+
+// 유출종류 선택 변경 시 영문명 자동 입력
+const onOutputTypeChange = () => {
+  if (selectedOutputType.value && outflowStore.commonCodes.length > 0) {
+    const selectedCode = outflowStore.commonCodes.find(
+      (code) => code.code_key === selectedOutputType.value
+    );
+    if (selectedCode) {
+      newOutflowTypeName.value = selectedCode.code_value; // 한글명 설정
+      newOutflowTypeNameEn.value = selectedCode.code_value_en; // 영문명 설정
+    }
+  } else {
+    newOutflowTypeName.value = "";
+    newOutflowTypeNameEn.value = "";
+  }
+};
+
+interface GridRow {
+  id: number;
+  mapping_id: string;
+  parameter_id: string;
+  parameter_name: string; // item을 parameter_name으로 변경
+  parameter_code: string;
+  effluent: number;
+  unit: string;
+  is_active: boolean;
+  is_required: boolean;
+  remarks: string;
+}
+
+interface TabInfo {
+  name: string;
+  flow_type_id?: string; // 데이터베이스 ID 추가
+  flow_type_code?: string; // 코드 추가
+  symbol_color?: string; // 심볼 색상 추가
+}
+
+interface GridRow2 {
+  id: number; // 순번
+  formula_id: string; // 삭제 시 사용할 formula_id
+  formula: string; // formula_name 표시
+  uploadDate: string; // created_at을 YYYY-MM-DD 형태로 변환
+  created_at: string; // 원본 created_at (비교용)
+  unit_system_code: "METRIC" | "USCS"; // 단위 시스템
+  flow_type_id: string; // 플로우 타입 ID
+}
+
+interface UploadForm {
+  title: string;
+  category: string;
+  file: File | null;
+  existingFileName?: string; // 기존 파일명 표시용
+}
+
+const uploadForm = ref<UploadForm>({
+  title: "",
+  category: "",
+  file: null,
+});
+
+// 기존 심볼인지 새로 첨부한 심볼인지 구분
+const isExistingSymbol = ref(false);
+
+// 데이터베이스에서 가져온 탭 데이터
+const tabs = ref<TabInfo[]>([]);
+const isLoadingTabs = ref(true);
+
+const activeTab = ref(0);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+const tabsContainer = ref<HTMLElement | null>(null);
+const resizeObserver = ref<ResizeObserver | null>(null);
+const selectedMetricFormulaId = ref<string | null>(null);
+const selectedUscsFormulaId = ref<string | null>(null);
+const handleResize = () => {
+  nextTick(() => updateScrollButtons());
+};
+
+// Metric 계산식 선택 변경 핸들러
+const onMetricFormulaSelectionChange = (selectedItems: GridRow2[]) => {
+  if (selectedItems.length > 0) {
+    selectedMetricFormulaId.value = selectedItems[0].formula_id;
+  } else {
+    selectedMetricFormulaId.value = null;
+  }
+};
+
+// Uscs 계산식 선택 변경 핸들러
+const onUscsFormulaSelectionChange = (selectedItems: GridRow2[]) => {
+  if (selectedItems.length > 0) {
+    selectedUscsFormulaId.value = selectedItems[0].formula_id;
+  } else {
+    selectedUscsFormulaId.value = null;
+  }
+};
+
+// Metric 계산식 삭제 함수
+const deleteMetricFormula = async () => {
+  if (!selectedMetricFormulaId.value) {
+    alert(t("messages.warning.pleaseSelectItemToDelete"));
+    return;
+  }
+
+  if (confirm(t("messages.confirm.deleteMetricFormula"))) {
+    try {
+      // 최신 created_at 여부 판단
+      const list = currentGridData2.value;
+      const selected = list.find(
+        (it) => it.formula_id === selectedMetricFormulaId.value
+      );
+      const maxCreatedAt = list.reduce((max, it) => {
+        const t = new Date(it.created_at).getTime();
+        return t > max ? t : max;
+      }, 0);
+      const isLast = selected
+        ? new Date(selected.created_at).getTime() === maxCreatedAt
+        : false;
+
+      await outflowStore.deleteFormula(
+        selectedMetricFormulaId.value,
+        isLast,
+        selected?.unit_system_code,
+        selected?.flow_type_id
+      );
+
+      // 삭제 성공 시 현재 탭의 데이터 다시 로드
+      const currentTab = tabs.value[activeTab.value];
+      if (currentTab && currentTab.flow_type_code && currentTab.flow_type_id) {
+        await loadWaterFlowTypeParameters(
+          currentTab.flow_type_code,
+          currentTab.flow_type_id
+        );
+      }
+
+      // 선택 초기화
+      selectedMetricFormulaId.value = null;
+
+      alert(t("messages.success.metricFormulaDeleteSuccess"));
+    } catch (error) {
+      console.error("Metric 계산식 삭제 실패:", error);
+      const errorMessage = translateMessage(
+        error && typeof error === "object" && "message" in error
+          ? (error as { message: string }).message
+          : undefined,
+        "messages.error.formulaDeleteFailed"
+      );
+      alert(errorMessage);
+    }
+  }
+};
+
+// Uscs 계산식 삭제 함수
+const deleteUscsFormula = async () => {
+  if (!selectedUscsFormulaId.value) {
+    alert(t("messages.warning.pleaseSelectItemToDelete"));
+    return;
+  }
+
+  if (confirm(t("messages.confirm.deleteUscsFormula"))) {
+    try {
+      // 최신 created_at 여부 판단
+      const list = currentUscsGridData2.value;
+      const selected = list.find(
+        (it) => it.formula_id === selectedUscsFormulaId.value
+      );
+      const maxCreatedAt = list.reduce((max, it) => {
+        const t = new Date(it.created_at).getTime();
+        return t > max ? t : max;
+      }, 0);
+      const isLast = selected
+        ? new Date(selected.created_at).getTime() === maxCreatedAt
+        : false;
+
+      await outflowStore.deleteFormula(
+        selectedUscsFormulaId.value,
+        isLast,
+        selected?.unit_system_code,
+        selected?.flow_type_id
+      );
+
+      // 삭제 성공 시 현재 탭의 데이터 다시 로드
+      const currentTab = tabs.value[activeTab.value];
+      if (currentTab && currentTab.flow_type_code && currentTab.flow_type_id) {
+        await loadWaterFlowTypeParameters(
+          currentTab.flow_type_code,
+          currentTab.flow_type_id
+        );
+      }
+
+      // 선택 초기화
+      selectedUscsFormulaId.value = null;
+
+      alert(t("messages.success.uscsFormulaDeleteSuccess"));
+    } catch (error) {
+      console.error("Uscs 계산식 삭제 실패:", error);
+      const errorMessage = translateMessage(
+        error && typeof error === "object" && "message" in error
+          ? (error as { message: string }).message
+          : undefined,
+        "messages.error.formulaDeleteFailed"
+      );
+      alert(errorMessage);
+    }
+  }
+};
+
+// 유출종류별 파라미터 데이터 로드
+const loadWaterFlowTypeParameters = async (
+  flowTypeCode: string,
+  flowTypeId: string
+) => {
+  try {
+    // 유출종류별 파라미터 조회
+    await outflowStore.fetchWaterFlowTypeParameters(
+      "EFFLUENT",
+      flowTypeCode,
+      flowTypeId
+    );
+
+    // 조회된 파라미터를 그리드 데이터로 변환
+    if (outflowStore.waterFlowTypeParameters) {
+      const metricParams: GridRow[] = [];
+      const uscsParams: GridRow[] = [];
+
+      // Metric 파라미터 처리
+      if (
+        outflowStore.waterFlowTypeParameters.metric &&
+        Array.isArray(outflowStore.waterFlowTypeParameters.metric)
+      ) {
+        outflowStore.waterFlowTypeParameters.metric.forEach((param) => {
+          const gridRow: GridRow = {
+            id: 0, // 임시 ID, 나중에 재정렬
+            mapping_id: param.mapping_id || "",
+            parameter_id: param.parameter_id || "",
+            parameter_name: param.parameter_name,
+            parameter_code: param.parameter_code,
+            effluent: parseFloat(String(param.default_value || 0)) || 0,
+            unit: param.parameter_unit || "",
+            is_active: param.is_active,
+            is_required: param.is_required,
+            remarks: param.remarks || "",
+          };
+          metricParams.push(gridRow);
+        });
+      }
+
+      // Uscs 파라미터 처리
+      if (
+        outflowStore.waterFlowTypeParameters.uscs &&
+        Array.isArray(outflowStore.waterFlowTypeParameters.uscs)
+      ) {
+        outflowStore.waterFlowTypeParameters.uscs.forEach((param) => {
+          const gridRow: GridRow = {
+            id: 0, // 임시 ID, 나중에 재정렬
+            mapping_id: param.mapping_id || "",
+            parameter_id: param.parameter_id || "",
+            parameter_name: param.parameter_name,
+            parameter_code: param.parameter_code,
+            effluent: parseFloat(String(param.default_value || 0)) || 0,
+            unit: param.parameter_unit || "",
+            is_active: param.is_active,
+            is_required: param.is_required,
+            remarks: param.remarks || "",
+          };
+          uscsParams.push(gridRow);
+        });
+      }
+
+      // ID 재정렬
+      metricParams.forEach((item, index) => {
+        item.id = index + 1;
+      });
+
+      uscsParams.forEach((item, index) => {
+        item.id = index + 1;
+      });
+
+      // Metric과 Uscs 데이터를 각각 저장
+      metricTabGridData.value[activeTab.value] = metricParams;
+      uscsTabGridData.value[activeTab.value] = uscsParams;
+
+      // Metric 계산식 데이터 처리
+      if (
+        outflowStore.waterFlowTypeParameters.metric_formulas?.data?.formulas &&
+        Array.isArray(
+          outflowStore.waterFlowTypeParameters.metric_formulas.data.formulas
+        )
+      ) {
+        const formulas =
+          outflowStore.waterFlowTypeParameters.metric_formulas.data.formulas;
+
+        const metricFormulas: GridRow2[] = formulas.map((formula, index) => ({
+          id: formulas.length - index, // 순번 (역순)
+          formula_id: formula.formula_id, // 삭제 시 사용할 formula_id
+          formula: formula.formula_name,
+          download_url: formula.download_url || "", // 다운로드 URL
+          uploadDate: new Date(formula.created_at)
+            .toLocaleString("sv-SE", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })
+            .replace(",", ""), // YYYY-MM-DD HH:mm 형태로 변환 (24시간)
+          created_at: formula.created_at, // 원본 created_at
+          unit_system_code: formula.unit_system_code as "METRIC" | "USCS",
+          flow_type_id: formula.flow_type_id,
+        }));
+        tabGridData2.value[activeTab.value] = metricFormulas;
+      } else {
+        tabGridData2.value[activeTab.value] = [];
+      }
+
+      // Uscs 계산식 데이터 처리
+      if (
+        outflowStore.waterFlowTypeParameters.uscs_formulas?.data?.formulas &&
+        Array.isArray(
+          outflowStore.waterFlowTypeParameters.uscs_formulas.data.formulas
+        )
+      ) {
+        const formulas =
+          outflowStore.waterFlowTypeParameters.uscs_formulas.data.formulas;
+
+        const uscsFormulas: GridRow2[] = formulas.map((formula, index) => ({
+          id: formulas.length - index, // 순번 (역순)
+          formula_id: formula.formula_id, // 삭제 시 사용할 formula_id
+          formula: formula.formula_name,
+          download_url: formula.download_url || "", // 다운로드 URL
+          uploadDate: new Date(formula.created_at)
+            .toLocaleString("sv-SE", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })
+            .replace(",", ""), // YYYY-MM-DD HH:mm 형태로 변환 (24시간)
+          created_at: formula.created_at, // 원본 created_at
+          unit_system_code: formula.unit_system_code as "METRIC" | "USCS",
+          flow_type_id: formula.flow_type_id,
+        }));
+        uscsTabGridData2.value[activeTab.value] = uscsFormulas;
+      } else {
+        uscsTabGridData2.value[activeTab.value] = [];
+      }
+    } else {
+      // 파라미터가 없으면 빈 배열
+      metricTabGridData.value[activeTab.value] = [];
+      uscsTabGridData.value[activeTab.value] = [];
+    }
+  } catch (error) {
+    console.error("파라미터 데이터 로드 실패:", error);
+
+    // 에러 발생 시 빈 배열
+    tabGridData.value[activeTab.value] = [];
+  }
+};
+
+// 유출종류 데이터 로드
+const loadWaterFlowTypes = async () => {
+  try {
+    isLoadingTabs.value = true;
+
+    // 유출종류 목록 조회
+    await outflowStore.fetchWaterFlowTypes("EFFLUENT");
+
+    // 조회된 데이터를 탭 형태로 변환
+    if (outflowStore.waterFlowTypes && outflowStore.waterFlowTypes.length > 0) {
+      tabs.value = outflowStore.waterFlowTypes.map((waterFlowType) => ({
+        name: waterFlowType.flow_type_name,
+        flow_type_id: waterFlowType.flow_type_id,
+        flow_type_code: waterFlowType.flow_type_code,
+        symbol_color: waterFlowType.symbol_info?.symbol_color,
+      }));
+    } else {
+      // 데이터가 없으면 기본 탭 설정
+      tabs.value = [{ name: t("placeholder.noData") }];
+    }
+
+    // 첫 번째 탭을 활성화하고 파라미터 로드
+    if (tabs.value.length > 0) {
+      activeTab.value = 0;
+
+      // 첫 번째 탭의 파라미터도 로드
+      const firstTab = tabs.value[0];
+      if (firstTab && firstTab.flow_type_code && firstTab.flow_type_id) {
+        await loadWaterFlowTypeParameters(
+          firstTab.flow_type_code,
+          firstTab.flow_type_id
+        );
+      }
+    }
+  } catch (error) {
+    console.error("유출종류 데이터 로드 실패:", error);
+
+    // 에러 발생 시 기본 탭 설정
+    tabs.value = [{ name: t("messages.error.loadFailed") }];
+  } finally {
+    isLoadingTabs.value = false;
+
+    // 스크롤 버튼 상태 업데이트
+    nextTick(() => {
+      updateScrollButtons();
+    });
+  }
+};
+
+// 모달 관련 상태
+const isModalOpen = ref(false);
+const isCodeManagementModalOpen = ref(false);
+const newTabName = ref("");
+
+// 파일 선택 관련 상태
+const metricFileData = ref<GridRow[]>([]);
+const uscsFileData = ref<GridRow[]>([]);
+const metricFileName = ref<string>("");
+const uscsFileName = ref<string>("");
+const metricFile = ref<File | null>(null);
+const uscsFile = ref<File | null>(null);
+
+// 수정 모달용 별도 데이터
+const updateMetricFileData = ref<GridRow[]>([]);
+const updateUscsFileData = ref<GridRow[]>([]);
+const updateMetricFileName = ref<string>("");
+const updateUscsFileName = ref<string>("");
+const updateMetricFile = ref<File | null>(null);
+const updateUscsFile = ref<File | null>(null);
+const isUpdateMetricFileAttached = ref<boolean>(false);
+const isUpdateUscsFileAttached = ref<boolean>(false);
+
+const gridColumns: TableColumn[] = [
+  { key: "id", title: t("columns.outflow.no"), width: "80px" },
+  { key: "item", title: t("columns.outflow.item") },
+  { key: "effluent", title: t("columns.outflow.effluent") },
+  { key: "unit", title: t("columns.outflow.unit") },
+  { key: "is_active", title: t("columns.outflow.active"), hidden: true },
+  { key: "is_required", title: t("columns.outflow.isRequired") },
+  { key: "remarks", title: t("columns.outflow.remarks") },
+];
+
+const gridColumns2: TableColumn[] = [
+  { key: "id", title: t("columns.outflow.no"), width: "80px" },
+  { key: "formula", title: t("columns.outflow.formula") },
+  { key: "uploadDate", title: t("columns.outflow.uploadDate") },
+];
+
+const handleFileUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const file = target.files[0];
+
+    // 허용된 파일 확장자 체크
+    const allowedExtensions = [".svg"];
+    const fileExtension = file.name
+      .toLowerCase()
+      .substring(file.name.lastIndexOf("."));
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      alert(t("messages.warning.invalidFileType"));
+      target.value = ""; // 파일 선택 초기화
+      return;
+    }
+
+    // 파일명 validation (확장자 제외)
+    const fileNameWithoutExt = file.name.substring(
+      0,
+      file.name.lastIndexOf(".")
+    );
+
+    // 100자 이내 체크
+    if (fileNameWithoutExt.length > 100) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      return;
+    }
+
+    // 파일명 validation: 영문만 사용, 공백 불가, 100자 이내, 특수 기호는 "_ - ()."만 허용
+    const fileNameRegex = /^[a-zA-Z0-9_\-().]+$/;
+    if (!fileNameRegex.test(fileNameWithoutExt)) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      return;
+    }
+
+    uploadForm.value.file = file;
+
+    // 새로 첨부한 파일이므로 기존 심볼이 아님
+    isExistingSymbol.value = false;
+
+    // SVG 미리보기: 파일 내용을 읽어 symbolImageContent에 주입
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const result = String(reader.result || "");
+        // 간단한 검증: '<svg' 태그 포함 여부 확인
+        if (result.includes("<svg")) {
+          symbolImageContent.value = result;
+        } else {
+          symbolImageContent.value = "";
+        }
+      } catch (e) {
+        console.error("SVG 미리보기 로드 실패:", e);
+        symbolImageContent.value = "";
+      }
+    };
+    reader.onerror = () => {
+      console.error("파일 읽기 에러");
+      symbolImageContent.value = "";
+    };
+    reader.readAsText(file);
+  }
+};
+
+// Metric 파일 업로드 핸들러
+const handleMetricFileUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const file = target.files[0];
+
+    // .py 파일인지 확인
+    if (!file.name.endsWith(".py")) {
+      alert(t("messages.warning.pythonFileOnly"));
+      target.value = "";
+      return;
+    }
+
+    // 파일명 validation (확장자 제외)
+    const fileNameWithoutExt = file.name.substring(
+      0,
+      file.name.lastIndexOf(".")
+    );
+
+    // 100자 이내 체크
+    if (fileNameWithoutExt.length > 100) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      metricFileName.value = "";
+      metricFile.value = null;
+      return;
+    }
+
+    // 파일명 validation: 영문만 사용, 공백 불가, 100자 이내, 특수 기호는 "_ - ()."만 허용
+    const fileNameRegex = /^[a-zA-Z0-9_\-().]+$/;
+    if (!fileNameRegex.test(fileNameWithoutExt)) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      metricFileName.value = "";
+      metricFile.value = null;
+      return;
+    }
+
+    metricFileName.value = file.name;
+    metricFile.value = file; // 파일 저장
+
+    try {
+      // FormData 생성하여 API 호출
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("unit_system", "METRIC");
+
+      // API 호출하여 계산식 추출
+      const response = await outflowStore.extractFormula(formData);
+
+      console.log("API 응답:", response);
+
+      if (
+        response &&
+        response.response &&
+        response.response.data &&
+        response.response.data.input_parameters
+      ) {
+        const inputParameters = response.response.data.input_parameters;
+        const parameterNames: string[] =
+          response.response.data.analysis?.parameter_names || [];
+        const extractedData: GridRow[] = [];
+        let idCounter = 1;
+
+        // analysis.parameter_names 기준으로 정렬된 순서대로 GridRow 생성
+        parameterNames.forEach((parameterCode) => {
+          const paramData = inputParameters[parameterCode];
+          if (!paramData) {
+            return;
+          }
+
+          const matchingParameter = outflowStore.waterQualityParameters.find(
+            (param) =>
+              param.parameter_code.toLowerCase() === parameterCode.toLowerCase()
+          );
+
+          if (matchingParameter) {
+            const gridRow: GridRow = {
+              id: idCounter++,
+              mapping_id: "",
+              parameter_id: matchingParameter.parameter_id || "",
+              parameter_name: matchingParameter.parameter_name,
+              parameter_code: matchingParameter.parameter_code,
+              effluent: paramData.default_value || 0,
+              unit: paramData.unit || "mg/L",
+              is_active: true,
+              is_required: !!paramData.is_required,
+              remarks: paramData.remark || "",
+            };
+            extractedData.push(gridRow);
+          }
+        });
+
+        metricFileData.value = extractedData;
+        console.log("Metric 계산식 추출 완료:", extractedData);
+      } else {
+        // API 응답이 없으면 빈 배열로 설정
+        metricFileData.value = [];
+        console.log("API 응답이 없어서 빈 배열로 설정");
+      }
+    } catch (error) {
+      console.error("계산식 추출 에러:", error);
+      // API 실패 시 빈 배열로 설정
+      metricFileData.value = [];
+      alert(t("messages.warning.fileReadError"));
+    }
+  }
+};
+
+// 수정 모달용 Metric 파일 업로드 핸들러
+const handleUpdateMetricFileUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const file = target.files[0];
+
+    // .py 파일인지 확인
+    if (!file.name.endsWith(".py")) {
+      alert(t("messages.warning.pythonFileOnly"));
+      target.value = "";
+      return;
+    }
+
+    // 파일명 validation (확장자 제외)
+    const fileNameWithoutExt = file.name.substring(
+      0,
+      file.name.lastIndexOf(".")
+    );
+
+    // 100자 이내 체크
+    if (fileNameWithoutExt.length > 100) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      updateMetricFileName.value = "";
+      updateMetricFile.value = null;
+      return;
+    }
+
+    // 파일명 validation: 영문만 사용, 공백 불가, 100자 이내, 특수 기호는 "_ - ()."만 허용
+    const fileNameRegex = /^[a-zA-Z0-9_\-().]+$/;
+    if (!fileNameRegex.test(fileNameWithoutExt)) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      updateMetricFileName.value = "";
+      updateMetricFile.value = null;
+      return;
+    }
+
+    updateMetricFileName.value = file.name;
+    updateMetricFile.value = file; // 파일 저장
+
+    // 파일 첨부 시 즉시 그리드 초기화 및 플래그 설정
+    updateMetricFileData.value = [];
+    isUpdateMetricFileAttached.value = true;
+
+    try {
+      // FormData 생성하여 API 호출
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("unit_system", "METRIC");
+
+      // API 호출하여 계산식 추출
+      const response = await outflowStore.extractFormula(formData);
+
+      console.log("API 응답:", response);
+
+      if (
+        response &&
+        response.response &&
+        response.response.data &&
+        response.response.data.input_parameters
+      ) {
+        const inputParameters = response.response.data.input_parameters;
+        const parameterNames: string[] =
+          response.response.data.analysis?.parameter_names || [];
+        const extractedData: GridRow[] = [];
+        let idCounter = 1;
+
+        // analysis.parameter_names 기준으로 정렬된 순서대로 GridRow 생성
+        parameterNames.forEach((parameterCode) => {
+          const paramData = inputParameters[parameterCode];
+          if (!paramData) {
+            return;
+          }
+
+          const matchingParameter = outflowStore.waterQualityParameters.find(
+            (param) =>
+              param.parameter_code.toLowerCase() === parameterCode.toLowerCase()
+          );
+
+          if (matchingParameter) {
+            const gridRow: GridRow = {
+              id: idCounter++,
+              mapping_id: "",
+              parameter_id: matchingParameter.parameter_id || "",
+              parameter_name: matchingParameter.parameter_name,
+              parameter_code: matchingParameter.parameter_code,
+              effluent: paramData.default_value || 0,
+              unit: paramData.unit || "mg/L",
+              is_active: true,
+              is_required: !!paramData.is_required,
+              remarks: paramData.remark || "",
+            };
+            extractedData.push(gridRow);
+          }
+        });
+
+        updateMetricFileData.value = extractedData;
+        console.log("수정 모달 Metric 계산식 추출 완료:", extractedData);
+      } else {
+        // input_parameters가 없어도 이미 빈 배열로 초기화됨
+        console.log("input_parameters가 없어서 빈 배열 유지");
+      }
+    } catch (error) {
+      console.error("계산식 추출 에러:", error);
+      // 에러 발생 시에도 빈 배열 유지 (이미 초기화됨)
+      alert(t("messages.warning.fileReadError"));
+    }
+  }
+};
+
+// Uscs 파일 업로드 핸들러
+const handleUscsFileUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const file = target.files[0];
+
+    // .py 파일인지 확인
+    if (!file.name.endsWith(".py")) {
+      alert(t("messages.warning.pythonFileOnly"));
+      target.value = "";
+      return;
+    }
+
+    // 파일명 validation (확장자 제외)
+    const fileNameWithoutExt = file.name.substring(
+      0,
+      file.name.lastIndexOf(".")
+    );
+
+    // 100자 이내 체크
+    if (fileNameWithoutExt.length > 100) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      uscsFileName.value = "";
+      uscsFile.value = null;
+      return;
+    }
+
+    // 파일명 validation: 영문만 사용, 공백 불가, 100자 이내, 특수 기호는 "_ - ()."만 허용
+    const fileNameRegex = /^[a-zA-Z0-9_\-().]+$/;
+    if (!fileNameRegex.test(fileNameWithoutExt)) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      uscsFileName.value = "";
+      uscsFile.value = null;
+      return;
+    }
+
+    uscsFileName.value = file.name;
+    uscsFile.value = file; // 파일 저장
+
+    try {
+      // FormData 생성하여 API 호출
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("unit_system", "USCS");
+
+      // API 호출하여 계산식 추출
+      const response = await outflowStore.extractFormula(formData);
+
+      console.log("API 응답:", response);
+
+      if (
+        response &&
+        response.response &&
+        response.response.data &&
+        response.response.data.input_parameters
+      ) {
+        const inputParameters = response.response.data.input_parameters;
+        const parameterNames: string[] =
+          response.response.data.analysis?.parameter_names || [];
+        const extractedData: GridRow[] = [];
+        let idCounter = 1;
+
+        // analysis.parameter_names 기준으로 정렬된 순서대로 GridRow 생성
+        parameterNames.forEach((parameterCode) => {
+          const paramData = inputParameters[parameterCode];
+          if (!paramData) {
+            return;
+          }
+
+          const matchingParameter = outflowStore.waterQualityParameters.find(
+            (param) =>
+              param.parameter_code.toLowerCase() === parameterCode.toLowerCase()
+          );
+
+          if (matchingParameter) {
+            const gridRow: GridRow = {
+              id: idCounter++,
+              mapping_id: "",
+              parameter_id: matchingParameter.parameter_id || "",
+              parameter_name: matchingParameter.parameter_name,
+              parameter_code: matchingParameter.parameter_code,
+              effluent: paramData.default_value || 0,
+              unit: paramData.unit || "mg/L",
+              is_active: true,
+              is_required: !!paramData.is_required,
+              remarks: paramData.remark || "",
+            };
+            extractedData.push(gridRow);
+          }
+        });
+
+        uscsFileData.value = extractedData;
+        console.log("Uscs 계산식 추출 완료:", extractedData);
+      } else {
+        // API 응답이 없으면 빈 배열로 설정
+        uscsFileData.value = [];
+        console.log("API 응답이 없어서 빈 배열로 설정");
+      }
+    } catch (error) {
+      console.error("계산식 추출 에러:", error);
+      // API 실패 시 빈 배열로 설정
+      uscsFileData.value = [];
+      alert(t("messages.warning.fileReadError"));
+    }
+  }
+};
+
+// 수정 모달용 Uscs 파일 업로드 핸들러
+const handleUpdateUscsFileUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const file = target.files[0];
+
+    // .py 파일인지 확인
+    if (!file.name.endsWith(".py")) {
+      alert(t("messages.warning.pythonFileOnly"));
+      target.value = "";
+      return;
+    }
+
+    // 파일명 validation (확장자 제외)
+    const fileNameWithoutExt = file.name.substring(
+      0,
+      file.name.lastIndexOf(".")
+    );
+
+    // 100자 이내 체크
+    if (fileNameWithoutExt.length > 100) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      updateUscsFileName.value = "";
+      updateUscsFile.value = null;
+      return;
+    }
+
+    // 파일명 validation: 영문만 사용, 공백 불가, 100자 이내, 특수 기호는 "_ - ()."만 허용
+    const fileNameRegex = /^[a-zA-Z0-9_\-().]+$/;
+    if (!fileNameRegex.test(fileNameWithoutExt)) {
+      alert(t("messages.warning.invalidFormulaFileNameFormat"));
+      target.value = "";
+      updateUscsFileName.value = "";
+      updateUscsFile.value = null;
+      return;
+    }
+
+    updateUscsFileName.value = file.name;
+    updateUscsFile.value = file; // 파일 저장
+
+    // 파일 첨부 시 즉시 그리드 초기화 및 플래그 설정
+    updateUscsFileData.value = [];
+    isUpdateUscsFileAttached.value = true;
+
+    try {
+      // FormData 생성하여 API 호출
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("unit_system", "USCS");
+
+      // API 호출하여 계산식 추출
+      const response = await outflowStore.extractFormula(formData);
+
+      console.log("API 응답:", response);
+
+      if (
+        response &&
+        response.response &&
+        response.response.data &&
+        response.response.data.input_parameters
+      ) {
+        const inputParameters = response.response.data.input_parameters;
+        const parameterNames: string[] =
+          response.response.data.analysis?.parameter_names || [];
+        const extractedData: GridRow[] = [];
+        let idCounter = 1;
+
+        // analysis.parameter_names 기준으로 정렬된 순서대로 GridRow 생성
+        parameterNames.forEach((parameterCode) => {
+          const paramData = inputParameters[parameterCode];
+          if (!paramData) {
+            return;
+          }
+
+          const matchingParameter = outflowStore.waterQualityParameters.find(
+            (param) =>
+              param.parameter_code.toLowerCase() === parameterCode.toLowerCase()
+          );
+
+          if (matchingParameter) {
+            const gridRow: GridRow = {
+              id: idCounter++,
+              mapping_id: "",
+              parameter_id: matchingParameter.parameter_id || "",
+              parameter_name: matchingParameter.parameter_name,
+              parameter_code: matchingParameter.parameter_code,
+              effluent: paramData.default_value || 0,
+              unit: paramData.unit || "mg/L",
+              is_active: true,
+              is_required: !!paramData.is_required,
+              remarks: paramData.remark || "",
+            };
+            extractedData.push(gridRow);
+          }
+        });
+
+        updateUscsFileData.value = extractedData;
+        console.log("수정 모달 Uscs 계산식 추출 완료:", extractedData);
+      } else {
+        // input_parameters가 없어도 이미 빈 배열로 초기화됨
+        console.log("input_parameters가 없어서 빈 배열 유지");
+      }
+    } catch (error) {
+      console.error("계산식 추출 에러:", error);
+      // 에러 발생 시에도 빈 배열 유지 (이미 초기화됨)
+      alert(t("messages.warning.fileReadError"));
+    }
+  }
+};
+
+// 색상 업데이트 함수
+const updateColor = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  selectedColor.value = target.value;
+  showColorPicker.value = false;
+};
+
+// 배경색에 따른 텍스트 색상 계산 함수
+const getTextColor = (backgroundColor: string): string => {
+  // hex 색상을 RGB로 변환
+  const hex = backgroundColor.replace("#", "");
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+
+  // 휘도 계산 (0.299 * R + 0.587 * G + 0.114 * B)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // 휘도가 0.5보다 크면 검은색, 작으면 흰색
+  return luminance > 0.5 ? "#000000" : "#ffffff";
+};
+
+// 각 탭별 데이터
+const tabGridData = ref<{ [key: number]: GridRow[] }>({});
+
+// Metric용 데이터
+const metricTabGridData = ref<{ [key: number]: GridRow[] }>({});
+
+// Uscs용 데이터
+const uscsTabGridData = ref<{ [key: number]: GridRow[] }>({});
+
+// Uscs 계산식용 데이터
+const uscsTabGridData2 = ref<{ [key: number]: GridRow2[] }>({});
+
+const tabGridData2 = ref<{ [key: number]: GridRow2[] }>({});
+
+// 각 탭별 데이터 복사본을 Metric/Uscs용으로 초기화
+Object.keys(tabGridData.value).forEach((key) => {
+  const tabKey = parseInt(key);
+  metricTabGridData.value[tabKey] = [...tabGridData.value[tabKey]];
+  uscsTabGridData.value[tabKey] = [...tabGridData.value[tabKey]];
+});
+
+// 수질 파라미터 선택 시 처리 함수
+const onParameterSelect = (
+  parameterCode: string,
+  rowIndex: number,
+  isMetric: boolean = true,
+  isModal: boolean = false
+) => {
+  const selectedParameter = outflowStore.waterQualityParameters.find(
+    (param) => param.parameter_code === parameterCode
+  );
+
+  console.log("선택된 파라미터:", selectedParameter);
+  console.log("전체 수질 파라미터 목록:", outflowStore.waterQualityParameters);
+
+  if (selectedParameter) {
+    // 선택된 행 업데이트
+    const targetData = isModal
+      ? isMetric
+        ? metricFileData.value
+        : uscsFileData.value
+      : isMetric
+      ? metricTabGridData.value[activeTab.value]
+      : uscsTabGridData.value[activeTab.value];
+
+    if (targetData && targetData[rowIndex]) {
+      targetData[rowIndex].parameter_id = selectedParameter.parameter_id || "";
+      targetData[rowIndex].parameter_name = selectedParameter.parameter_name;
+      targetData[rowIndex].parameter_code = selectedParameter.parameter_code; // parameter_code 저장
+      targetData[rowIndex].unit = selectedParameter.default_unit;
+      // effluent 값은 기본값이 있으면 설정, 없으면 0
+      targetData[rowIndex].effluent = 0;
+      targetData[rowIndex].remarks = selectedParameter.description || "";
+
+      console.log("업데이트된 행 데이터:", targetData[rowIndex]);
+    }
+  }
+};
+
+// Metric 탭 데이터
+const currentMetricGridData = computed(() => {
+  return metricTabGridData.value[activeTab.value] || [];
+});
+
+// Uscs 탭 데이터
+const currentUscsGridData = computed(() => {
+  return uscsTabGridData.value[activeTab.value] || [];
+});
+
+// 기본 탭 데이터 (Inflow.vue와 동일하게)
+const currentGridData = computed(() => {
+  return tabGridData.value[activeTab.value] || [];
+});
+
+const currentGridData2 = computed(() => {
+  return tabGridData2.value[activeTab.value] || [];
+});
+
+// Uscs 계산식 데이터
+const currentUscsGridData2 = computed(() => {
+  return uscsTabGridData2.value[activeTab.value] || [];
+});
+
+// 선택된 Metric 계산식
+const selectedMetricFormula = computed(() => {
+  if (!selectedMetricFormulaId.value) return [];
+  const formula = currentGridData2.value.find(
+    (item) => item.formula_id === selectedMetricFormulaId.value
+  );
+  return formula ? [formula] : [];
+});
+
+// 선택된 Uscs 계산식
+const selectedUscsFormula = computed(() => {
+  if (!selectedUscsFormulaId.value) return [];
+  const formula = currentUscsGridData2.value.find(
+    (item) => item.formula_id === selectedUscsFormulaId.value
+  );
+  return formula ? [formula] : [];
+});
+
+// 최신 Metric 계산식
+const latestMetricFormula = computed(() => {
+  const formulas =
+    outflowStore.waterFlowTypeParameters.metric_formulas?.data?.formulas;
+  if (!formulas || !Array.isArray(formulas) || formulas.length === 0) {
+    return null;
+  }
+  // created_at 기준으로 내림차순 정렬하여 가장 최신 계산식 가져오기
+  const sortedFormulas = [...formulas].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  return sortedFormulas[0]?.formula_name || null;
+});
+
+// 최신 Uscs 계산식
+const latestUscsFormula = computed(() => {
+  const formulas =
+    outflowStore.waterFlowTypeParameters.uscs_formulas?.data?.formulas;
+  if (!formulas || !Array.isArray(formulas) || formulas.length === 0) {
+    return null;
+  }
+  // created_at 기준으로 내림차순 정렬하여 가장 최신 계산식 가져오기
+  const sortedFormulas = [...formulas].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  return sortedFormulas[0]?.formula_name || null;
+});
+
+// 수정 모달용 파라미터 선택 핸들러
+const onUpdateParameterSelect = (
+  parameterCode: string,
+  rowIndex: number,
+  isMetric: boolean = true,
+  isModal: boolean = false
+) => {
+  const selectedParameter = outflowStore.waterQualityParameters.find(
+    (param) => param.parameter_code === parameterCode
+  );
+
+  console.log("선택된 파라미터:", selectedParameter);
+  console.log("전체 수질 파라미터 목록:", outflowStore.waterQualityParameters);
+
+  if (selectedParameter) {
+    // 선택된 행 업데이트
+    const targetData = isModal
+      ? isMetric
+        ? updateMetricFileData.value
+        : updateUscsFileData.value
+      : isMetric
+      ? metricTabGridData.value[activeTab.value]
+      : uscsTabGridData.value[activeTab.value];
+
+    if (targetData && targetData[rowIndex]) {
+      targetData[rowIndex].parameter_id = selectedParameter.parameter_id || "";
+      targetData[rowIndex].parameter_name = selectedParameter.parameter_name;
+      targetData[rowIndex].parameter_code = selectedParameter.parameter_code; // parameter_code 저장
+      targetData[rowIndex].unit = selectedParameter.default_unit;
+      // effluent 값은 기본값이 있으면 설정, 없으면 0
+      targetData[rowIndex].effluent = 0;
+      targetData[rowIndex].remarks = selectedParameter.description || "";
+    }
+  }
+};
+
+// 모달 관련 함수
+const openModal = () => {
+  isModalOpen.value = true;
+  newTabName.value = "";
+  symbolImageContent.value = ""; // 심볼 이미지 콘텐츠 초기화
+};
+
+const openCodeManagementModal = () => {
+  isCodeManagementModalOpen.value = true;
+};
+
+const closeModal = () => {
+  isModalOpen.value = false;
+  // 폼 초기화
+  selectedOutputType.value = "";
+  newOutflowTypeName.value = "";
+  newOutflowTypeNameEn.value = "";
+  uploadForm.value.title = "";
+  uploadForm.value.file = null; // 파일 첨부 초기화
+  uploadForm.value.existingFileName = ""; // 기존 파일명 초기화
+  selectedColor.value = "#3b82f6"; // 심볼 색상 초기화
+  symbolImageContent.value = ""; // 심볼 이미지 콘텐츠 초기화
+  metricFileData.value = [];
+  uscsFileData.value = [];
+  metricFileName.value = "";
+  uscsFileName.value = "";
+  metricFile.value = null;
+  uscsFile.value = null;
+};
+
+const closeCodeManagementModal = () => {
+  isCodeManagementModalOpen.value = false;
+};
+
+// 수정 모달 관련 함수
+const openUpdateModal = async () => {
+  if (activeTab.value < 0 || !tabs.value[activeTab.value]) {
+    alert(t("messages.warning.selectTabToEdit"));
+    return;
+  }
+
+  // 심볼 이미지 콘텐츠 초기화
+  symbolImageContent.value = "";
+  isExistingSymbol.value = false;
+
+  const currentTab = tabs.value[activeTab.value];
+
+  // 현재 탭의 데이터를 폼에 설정
+  newOutflowTypeName.value = currentTab.name || "";
+
+  // 원본 데이터에서 색상 정보 가져오기
+  const originalWaterFlowType = outflowStore.waterFlowTypes.find(
+    (wft) => wft.flow_type_id === currentTab.flow_type_id
+  );
+  selectedColor.value =
+    originalWaterFlowType?.symbol_info?.symbol_color || "#3b82f6";
+  uploadForm.value.title = originalWaterFlowType?.description || ""; // description을 비고 input에 설정
+
+  // 심볼 파일 정보 조회하여 첨부파일 input에 표시
+  if (originalWaterFlowType?.svg_symbol_id) {
+    try {
+      const fileInfoResponse = await outflowStore.fetchSymbolFileInfo(
+        originalWaterFlowType.svg_symbol_id
+      );
+      if (
+        fileInfoResponse?.response?.uploaded_files &&
+        fileInfoResponse.response.uploaded_files.length > 0
+      ) {
+        // uploaded_at 기준으로 정렬하여 가장 최신 파일 찾기
+        const latestFile = fileInfoResponse.response.uploaded_files.sort(
+          (a: Record<string, unknown>, b: Record<string, unknown>) =>
+            new Date(String(b.uploaded_at)).getTime() -
+            new Date(String(a.uploaded_at)).getTime()
+        )[0];
+
+        // 파일명을 input에 표시하기 위해 별도 상태 추가
+        uploadForm.value.existingFileName = latestFile.original_filename;
+      }
+
+      // 심볼 이미지 표시를 위한 콘텐츠 저장
+      if (fileInfoResponse?.response?.file_info?.response?.content) {
+        symbolImageContent.value =
+          fileInfoResponse.response.file_info.response.content;
+        // 기존 심볼이 로드되었으므로 true로 설정
+        isExistingSymbol.value = true;
+      }
+    } catch (error) {
+      console.error("파일 정보 조회 실패:", error);
+      // 에러가 발생해도 모달은 계속 진행
+    }
+  }
+
+  // flow_type_code에서 공통코드 찾기
+  if (currentTab.flow_type_code && outflowStore.commonCodes.length > 0) {
+    const matchedCode = outflowStore.commonCodes.find(
+      (code) => code.code_key === currentTab.flow_type_code
+    );
+    if (matchedCode) {
+      selectedOutputType.value = matchedCode.code_key;
+      newOutflowTypeName.value = matchedCode.code_value || "";
+      newOutflowTypeNameEn.value = matchedCode.code_value_en || "";
+    }
+  }
+
+  // 현재 탭의 Metric과 Uscs 데이터를 수정 폼에 복사
+  if (metricTabGridData.value[activeTab.value]) {
+    updateMetricFileData.value = [...metricTabGridData.value[activeTab.value]];
+  }
+  if (uscsTabGridData.value[activeTab.value]) {
+    updateUscsFileData.value = [...uscsTabGridData.value[activeTab.value]];
+  }
+
+  // 파일 첨부 플래그 초기화
+  isUpdateMetricFileAttached.value = false;
+  isUpdateUscsFileAttached.value = false;
+
+  // 모달 열기
+  isUpdateModalOpen.value = true;
+};
+
+const handleDeleteSymbol = async () => {
+  if (confirm(t("messages.confirm.deleteSymbol"))) {
+    try {
+      // 현재 탭의 svg_symbol_id 가져오기
+      const currentTab = tabs.value[activeTab.value];
+      const originalWaterFlowType = outflowStore.waterFlowTypes.find(
+        (wft) => wft.flow_type_id === currentTab?.flow_type_id
+      );
+
+      if (originalWaterFlowType?.svg_symbol_id) {
+        // API 호출로 심볼 삭제
+        const response = await outflowStore.deleteSymbol(
+          originalWaterFlowType.svg_symbol_id,
+          originalWaterFlowType.flow_type_id || "",
+          originalWaterFlowType.flow_type_code || "",
+          originalWaterFlowType.flow_type_name || "",
+          originalWaterFlowType.symbol_info?.symbol_color || ""
+        );
+
+        // response에서 newSymbolId를 받아서 기존 svg_symbol_id 업데이트
+        if (response?.response?.newSymbolId) {
+          const newSymbolId = response.response.newSymbolId;
+          // store의 waterFlowTypes에서 해당 항목 찾아서 svg_symbol_id 업데이트
+          const targetFlowType = outflowStore.waterFlowTypes.find(
+            (wft) => wft.flow_type_id === originalWaterFlowType.flow_type_id
+          );
+          if (targetFlowType) {
+            targetFlowType.svg_symbol_id = newSymbolId;
+          }
+        }
+
+        // 성공 메시지
+        alert(t("messages.success.symbolDeleteSuccess"));
+      }
+
+      // UI 상태 초기화
+      symbolImageContent.value = "";
+      uploadForm.value.file = null;
+      uploadForm.value.existingFileName = "";
+    } catch (error) {
+      console.error("심볼 삭제 실패:", error);
+      alert(t("messages.error.symbolDeleteFailed"));
+    }
+  }
+};
+
+const handleDeleteFlowType = async () => {
+  if (tabs.value.length === 0) {
+    alert(t("messages.warning.pleaseSelectItemToDelete"));
+    return;
+  }
+
+  const currentTab = tabs.value[activeTab.value];
+
+  if (!currentTab || !currentTab.flow_type_id) {
+    alert(t("messages.warning.pleaseSelectItemToDelete"));
+    return;
+  }
+
+  const confirmMessage = currentTab.name
+    ? `${t("messages.confirm.deleteItem")} (${currentTab.name})`
+    : t("messages.confirm.deleteItem");
+
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  isDeleting.value = true;
+  const flowType = outflowStore.waterFlowTypes.find(
+    (item) => item.flow_type_id === currentTab.flow_type_id
+  );
+  const svgSymbolId = flowType?.svg_symbol_id ?? null;
+  const metricFormulaIds = currentGridData2.value.map(
+    (formula) => formula.formula_id
+  );
+  const uscsFormulaIds = currentUscsGridData2.value.map(
+    (formula) => formula.formula_id
+  );
+
+  try {
+    await outflowStore.deleteWaterFlowType(currentTab.flow_type_id, {
+      flow_type_id: currentTab.flow_type_id,
+      svg_symbol_id: svgSymbolId,
+      metric_formula_ids: metricFormulaIds,
+      uscs_formula_ids: uscsFormulaIds,
+    });
+
+    await loadWaterFlowTypes();
+    alert(t("messages.success.deleted"));
+  } catch (error) {
+    console.error("유출종류 삭제 실패:", error);
+    const errorMessage = translateMessage(
+      error && typeof error === "object" && "message" in error
+        ? (error as { message: string }).message
+        : undefined,
+      "messages.error.deleteFailed"
+    );
+    alert(errorMessage);
+  } finally {
+    isDeleting.value = false;
+  }
+};
+
+const closeUpdateModal = () => {
+  isUpdateModalOpen.value = false;
+  // 수정 폼 초기화
+  selectedOutputType.value = "";
+  newOutflowTypeName.value = "";
+  newOutflowTypeNameEn.value = "";
+  uploadForm.value.title = "";
+  uploadForm.value.file = null; // 파일 첨부 초기화
+  uploadForm.value.existingFileName = ""; // 기존 파일명 초기화
+  selectedColor.value = "#3b82f6"; // 심볼 색상 초기화
+  symbolImageContent.value = ""; // 심볼 이미지 콘텐츠 초기화
+  isExistingSymbol.value = false; // 기존 심볼 플래그 초기화
+  updateMetricFileData.value = [];
+  updateUscsFileData.value = [];
+  updateMetricFileName.value = "";
+  updateUscsFileName.value = "";
+  updateMetricFile.value = null;
+  updateUscsFile.value = null;
+  isUpdateMetricFileAttached.value = false;
+  isUpdateUscsFileAttached.value = false;
+};
+
+const updateTab = async () => {
+  isUpdating.value = true;
+
+  try {
+    const currentTab = tabs.value[activeTab.value];
+    if (!currentTab || !currentTab.flow_type_id) {
+      alert(t("messages.warning.cannotFindDataToEdit"));
+      return;
+    }
+
+    // 현재 탭의 원본 데이터에서 svg_symbol_id 가져오기
+    const originalWaterFlowType = outflowStore.waterFlowTypes.find(
+      (wft) => wft.flow_type_id === currentTab.flow_type_id
+    );
+
+    // Metric 파라미터 데이터 준비
+    // 파일이 첨부되었으면 updateMetricFileData 사용, 아니면 currentMetricGridData 사용
+    const metricParameters = isUpdateMetricFileAttached.value
+      ? updateMetricFileData.value
+          .filter((item) => item.parameter_code && item.parameter_code !== "") // 선택된 파라미터만 필터링
+          .map((item) => ({
+            flow_type_id: currentTab.flow_type_id, // flow_type_id 추가
+            parameter_id: item.parameter_id || "", // parameter_id 사용 (없으면 빈 값)
+            parameter_code: item.parameter_code,
+            parameter_name: item.parameter_name,
+            is_active: item.is_active,
+            is_required: item.is_required,
+            default_value: isNaN(item.effluent) ? 0 : item.effluent ?? 0, // NaN/undefined/null인 경우 0으로 처리
+            parameter_unit: item.unit,
+            remarks: item.remarks || undefined,
+          }))
+      : currentMetricGridData.value.length > 0
+      ? currentMetricGridData.value
+          .filter((item) => item.parameter_code && item.parameter_code !== "")
+          .map((item) => ({
+            flow_type_id: currentTab.flow_type_id,
+            parameter_id: item.parameter_id || "",
+            parameter_code: item.parameter_code,
+            parameter_name: item.parameter_name,
+            is_active: item.is_active,
+            is_required: item.is_required,
+            default_value: isNaN(item.effluent) ? 0 : item.effluent ?? 0,
+            parameter_unit: item.unit,
+            remarks: item.remarks || undefined,
+          }))
+      : undefined;
+
+    // Uscs 파라미터 데이터 준비
+    // 파일이 첨부되었으면 updateUscsFileData 사용, 아니면 currentUscsGridData 사용
+    const uscsParameters = isUpdateUscsFileAttached.value
+      ? updateUscsFileData.value
+          .filter((item) => item.parameter_code && item.parameter_code !== "") // 선택된 파라미터만 필터링
+          .map((item) => ({
+            flow_type_id: currentTab.flow_type_id, // flow_type_id 추가
+            parameter_id: item.parameter_id || "", // parameter_id 사용 (없으면 빈 값)
+            parameter_code: item.parameter_code,
+            parameter_name: item.parameter_name,
+            is_active: item.is_active,
+            is_required: item.is_required,
+            default_value: isNaN(item.effluent) ? 0 : item.effluent ?? 0, // NaN/undefined/null인 경우 0으로 처리
+            parameter_unit: item.unit,
+            remarks: item.remarks || undefined,
+          }))
+      : currentUscsGridData.value.length > 0
+      ? currentUscsGridData.value
+          .filter((item) => item.parameter_code && item.parameter_code !== "")
+          .map((item) => ({
+            flow_type_id: currentTab.flow_type_id,
+            parameter_id: item.parameter_id || "",
+            parameter_code: item.parameter_code,
+            parameter_name: item.parameter_name,
+            is_active: item.is_active,
+            is_required: item.is_required,
+            default_value: isNaN(item.effluent) ? 0 : item.effluent ?? 0,
+            parameter_unit: item.unit,
+            remarks: item.remarks || undefined,
+          }))
+      : undefined;
+
+    // 수정할 데이터 준비
+    const requestData = {
+      waterFlowTypeData: {
+        flow_type_id: currentTab.flow_type_id, // flow_type_id 추가
+        flow_direction: "EFFLUENT", // flow_direction 하드코딩
+        flow_type_code: currentTab.flow_type_code, // flow_type_code 추가
+        flow_type_name: newOutflowTypeName.value.trim(),
+        flow_type_name_en: newOutflowTypeNameEn.value.trim() || undefined,
+        description: uploadForm.value.title || undefined,
+        svg_symbol_id: originalWaterFlowType?.svg_symbol_id, // SVG 심볼 ID 추가
+        symbol_color: selectedColor.value, // 심볼 색상 추가
+        is_active: true,
+        metric_parameters: metricParameters,
+        uscs_parameters: uscsParameters,
+      },
+      symbolFile: uploadForm.value.file || undefined, // 파일첨부
+      metricFile: updateMetricFile.value || undefined, // Metric 계산식 파일 (파일명 변경)
+      uscsFile: updateUscsFile.value || undefined, // Uscs 계산식 파일 (파일명 변경)
+    };
+
+    // 수정 API 호출
+    const response = await outflowStore.updateWaterFlowType(
+      currentTab.flow_type_id,
+      requestData
+    );
+
+    // 수정 완료 후 목록 새로고침
+    await loadWaterFlowTypes();
+
+    // 모달 닫기
+    closeUpdateModal();
+
+    // API 응답의 message를 사용하거나 기본 메시지 표시
+    const successMessage = translateMessage(
+      response?.message,
+      "messages.success.outflowTypeUpdateSuccess"
+    );
+    alert(successMessage);
+  } catch (error: unknown) {
+    console.error("유출종류 수정 실패:", error);
+
+    // request 유틸리티에서 표준화된 에러 객체의 message 사용
+    const errorMessage = translateMessage(
+      error && typeof error === "object" && "message" in error
+        ? (error as { message: string }).message
+        : undefined,
+      "messages.error.waterFlowTypeUpdateFailed"
+    );
+    alert(errorMessage);
+  } finally {
+    isUpdating.value = false;
+  }
+};
+
+const createNewTab = async () => {
+  if (!selectedOutputType.value) {
+    alert(t("messages.warning.selectOutflowType"));
+    return;
+  }
+
+  if (!newOutflowTypeName.value.trim()) {
+    alert(t("messages.warning.enterOutflowTypeName"));
+    return;
+  }
+
+  isCreating.value = true;
+
+  try {
+    // Metric 파라미터 데이터 준비 (선택된 파라미터만)
+    console.log("원본 metricFileData:", metricFileData.value);
+
+    const metricParameters =
+      metricFileData.value.length > 0
+        ? metricFileData.value
+            .filter((item) => item.parameter_code && item.parameter_code !== "") // 선택된 파라미터만 필터링
+            .map((item) => ({
+              parameter_code: item.parameter_code, // 저장된 parameter_code 사용
+              parameter_name: item.parameter_name,
+              is_active: item.is_active,
+              is_required: item.is_required,
+              default_value: isNaN(item.effluent) ? 0 : item.effluent ?? 0, // NaN/undefined/null인 경우 0으로 처리
+              parameter_unit: item.unit,
+              remarks: item.remarks || undefined,
+            }))
+        : undefined;
+
+    console.log("등록할 Metric 파라미터:", metricParameters);
+    metricParameters?.forEach((param, index) => {
+      console.log(`Metric 파라미터 ${index + 1}:`, {
+        parameter_code: param.parameter_code,
+        parameter_name: param.parameter_name,
+        is_active: param.is_active,
+        is_required: param.is_required,
+        default_value: param.default_value,
+        parameter_unit: param.parameter_unit,
+        remarks: param.remarks,
+      });
+    });
+
+    // Uscs 파라미터 데이터 준비 (선택된 파라미터만)
+    console.log("원본 uscsFileData:", uscsFileData.value);
+
+    const uscsParameters =
+      uscsFileData.value.length > 0
+        ? uscsFileData.value
+            .filter((item) => item.parameter_code && item.parameter_code !== "") // 선택된 파라미터만 필터링
+            .map((item) => ({
+              parameter_code: item.parameter_code, // 저장된 parameter_code 사용
+              parameter_name: item.parameter_name,
+              is_active: item.is_active,
+              is_required: item.is_required,
+              default_value: isNaN(item.effluent) ? 0 : item.effluent ?? 0, // NaN/undefined/null인 경우 0으로 처리
+              parameter_unit: item.unit,
+              remarks: item.remarks || undefined,
+            }))
+        : undefined;
+
+    console.log("등록할 Uscs 파라미터:", uscsParameters);
+    uscsParameters?.forEach((param, index) => {
+      console.log(`Uscs 파라미터 ${index + 1}:`, {
+        parameter_code: param.parameter_code,
+        parameter_name: param.parameter_name,
+        is_active: param.is_active,
+        is_required: param.is_required,
+        default_value: param.default_value,
+        parameter_unit: param.parameter_unit,
+        remarks: param.remarks,
+      });
+    });
+
+    // 유출종류와 파라미터를 한 번에 등록
+    const requestData = {
+      waterFlowTypeData: {
+        flow_type_code: selectedOutputType.value, // 선택된 공통코드의 code_key 사용
+        flow_type_name: newOutflowTypeName.value.trim(),
+        flow_type_name_en: newOutflowTypeNameEn.value.trim() || undefined,
+        flow_direction: "EFFLUENT",
+        description: uploadForm.value.title || undefined,
+        symbol_color: selectedColor.value, // 심볼 색상 추가
+        is_active: true,
+        metric_parameters: metricParameters,
+        uscs_parameters: uscsParameters,
+      },
+      symbolFile: uploadForm.value.file || undefined, // 파일첨부
+      metricFile: metricFile.value || undefined, // Metric 계산식 파일 (파일명 변경)
+      uscsFile: uscsFile.value || undefined, // Uscs 계산식 파일 (파일명 변경)
+    };
+
+    const response = await outflowStore.createWaterFlowType(requestData);
+
+    // 폼 초기화
+    selectedOutputType.value = "";
+    newOutflowTypeName.value = "";
+    newOutflowTypeNameEn.value = "";
+    uploadForm.value.title = "";
+    selectedColor.value = "#3b82f6"; // 심볼 색상 초기화
+    metricFileData.value = [];
+    uscsFileData.value = [];
+    metricFileName.value = "";
+    uscsFileName.value = "";
+    metricFile.value = null;
+    uscsFile.value = null;
+
+    closeModal();
+
+    // 유출종류 목록을 다시 로드해서 탭 업데이트
+    await loadWaterFlowTypes();
+
+    // 새로 등록된 항목으로 이동 (마지막 탭)
+    nextTick(async () => {
+      activeTab.value = tabs.value.length - 1;
+      updateScrollButtons();
+      if (tabsContainer.value) {
+        tabsContainer.value.scrollTo({
+          left: tabsContainer.value.scrollWidth,
+          behavior: "smooth",
+        });
+      }
+
+      // 새로 등록된 탭의 파라미터도 로드
+      const newTab = tabs.value[tabs.value.length - 1];
+      if (newTab && newTab.flow_type_code && newTab.flow_type_id) {
+        await loadWaterFlowTypeParameters(
+          newTab.flow_type_code,
+          newTab.flow_type_id
+        );
+      }
+    });
+
+    // API 응답의 message를 사용하거나 기본 메시지 표시
+    const successMessage = translateMessage(
+      response?.message,
+      "messages.success.outflowTypeCreateSuccess"
+    );
+    alert(successMessage);
+  } catch (error: unknown) {
+    console.error("유출종류 또는 파라미터 등록 실패:", error);
+
+    // request 유틸리티에서 표준화된 에러 객체의 message 사용
+    const errorMessage = translateMessage(
+      error && typeof error === "object" && "message" in error
+        ? (error as { message: string }).message
+        : undefined,
+      "messages.error.waterFlowTypeCreateFailed"
+    );
+    alert(errorMessage);
+  } finally {
+    isCreating.value = false;
+  }
+};
+
+const onTabClick = async (index: number) => {
+  activeTab.value = index;
+
+  // 탭 변경 시 해당 탭의 데이터가 없으면 초기화
+  if (!metricTabGridData.value[index]) {
+    metricTabGridData.value[index] = [];
+  }
+  if (!uscsTabGridData.value[index]) {
+    uscsTabGridData.value[index] = [];
+  }
+  if (!uscsTabGridData2.value[index]) {
+    uscsTabGridData2.value[index] = [];
+  }
+
+  // 선택된 탭의 유출종류 코드로 파라미터 조회
+  const selectedTab = tabs.value[index];
+  if (selectedTab && selectedTab.flow_type_code && selectedTab.flow_type_id) {
+    await loadWaterFlowTypeParameters(
+      selectedTab.flow_type_code,
+      selectedTab.flow_type_id
+    );
+  }
+};
+
+const updateScrollButtons = () => {
+  if (!tabsContainer.value) return;
+  const { scrollLeft, clientWidth, scrollWidth } = tabsContainer.value;
+  canScrollLeft.value = scrollLeft > 0;
+  canScrollRight.value = scrollLeft + clientWidth < scrollWidth;
+};
+
+const scrollTabs = (direction: number) => {
+  if (!tabsContainer.value) return;
+  const { scrollLeft, clientWidth } = tabsContainer.value;
+  const newScrollLeft = scrollLeft + direction * clientWidth;
+  tabsContainer.value.scrollTo({ left: newScrollLeft, behavior: "smooth" });
+};
+
+onBeforeUnmount(() => {
+  if (resizeObserver.value) {
+    resizeObserver.value.disconnect();
+    resizeObserver.value = null;
+  }
+  window.removeEventListener("resize", handleResize);
+  window.removeEventListener("orientationchange", handleResize);
+});
+</script>
+
+<style scoped lang="scss">
+@use "sass:color";
+
+.symbol-image-preview svg {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}
+
+.outflow {
+  padding: 40px 24px;
+  min-width: 0; // 전체 컨테이너가 축소될 수 있도록 허용
+
+  @media (max-width: 1024px) {
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+    &::-webkit-scrollbar-thumb {
+      background-color: transparent;
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 40px 0;
+  }
+
+  .page-content {
+    min-width: 0; // 페이지 컨텐츠가 축소될 수 있도록 허용
+  }
+
+  // 좌우 배치를 위한 스타일
+  .content-wrapper,
+  .modal-content-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    min-width: 0; // flex 컨테이너가 축소될 수 있도록 허용
+
+    // 반응형 처리: 작은 화면에서는 세로 배치
+    @media (max-width: 1024px) {
+      flex-direction: column;
+      gap: $spacing-md;
+    }
+
+    .tab-content-metric,
+    .tab-content-uscs,
+    .modal-tab-content-metric,
+    .modal-tab-content-uscs {
+      flex: 1;
+      width: 770px;
+      background: #ffffff;
+      border: 1px solid #e7e6ed;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      min-width: 0; // flex 아이템이 컨테이너를 벗어나지 않도록
+      overflow: hidden; // 내부 컨텐츠가 넘칠 때 숨김
+      max-width: 100%; // 최대 너비 제한
+
+      // 반응형 처리
+      @media (max-width: 1024px) {
+        min-width: 100%;
+        max-width: 100%;
+      }
+
+      .section-header {
+        .applied-formula {
+          display: inline-block;
+          color: #333333;
+          font-size: 13px;
+          font-weight: 400;
+        }
+      }
+    }
+
+    // 모달 내부에서는 배경색과 그림자 제거
+    .modal-tab-content-metric,
+    .modal-tab-content-uscs {
+      background: transparent;
+      box-shadow: none;
+    }
+  }
+
+  // 로딩 및 빈 데이터 상태 스타일
+  .loading-container,
+  .no-data-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    background: white;
+    border-radius: $border-radius-md;
+    border: 1px solid $border-color;
+
+    p {
+      color: $text-light;
+      font-size: 1rem; // $font-size-md 대신 직접 값 사용
+    }
+  }
+
+  // 탭 로딩 상태
+  .tab.loading {
+    background-color: $background-light;
+    color: $text-light;
+    cursor: default;
+    animation: pulse 1.5s infinite;
+  }
+
+  // 편집여부 체크
+  .check-edit {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 24px auto;
+    vertical-align: middle;
+    line-height: 0;
+
+    &.on {
+      width: 24px;
+      height: 24px;
+      background-color: #bed500;
+      border-radius: 20px;
+      background-image: url(../../assets/icons/ico_inflow-check.svg);
+    }
+
+    &.off,
+    &.required.off {
+      display: none;
+    }
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+}
+
+/* Modal Styles */
+.modal-content {
+  max-width: 90%;
+}
+
+dl.column-regist {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.column-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+}
+
+// 색상 선택기 스타일
+.color-picker-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .color-preview {
+    width: 40px;
+    height: 40px;
+    border-radius: $border-radius-sm;
+    border: 2px solid $border-color;
+    cursor: pointer;
+    transition: $transition-base;
+
+    &:hover {
+      border-color: $primary-color;
+      transform: scale(1.05);
+    }
+  }
+
+  .color-input {
+    width: 100px;
+    padding: 0;
+
+    &::-webkit-color-swatch-wrapper {
+      padding: 0;
+      border: none;
+    }
+    &::-webkit-color-swatch {
+      border: 1px solid #e7e6ed;
+      border-radius: 4px;
+    }
+  }
+
+  .color-text {
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $border-radius-sm;
+    border: 1px solid $border-color;
+    color: $text-light;
+    font-size: $font-size-sm;
+  }
+}
+
+// 탭 스크롤 관련 스타일
+.action-bar {
+  gap: 10px 40px;
+}
+
+.tab-action-bar {
+  min-width: 0; // 탭 액션 바가 축소될 수 있도록 허용
+}
+
+.swiper-bar {
+  display: flex;
+  align-items: center;
+  // flex: 1 1 auto;
+  max-width: 1100px;
+  min-width: 0; // 스와이퍼 바가 축소될 수 있도록 허용
+}
+
+.tabs-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0; // flex 아이템이 축소될 수 있도록 허용
+  padding: 0 20px;
+}
+
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  overflow-x: auto;
+  flex: 1 1 auto;
+  scroll-behavior: smooth;
+  min-width: 0; // flex 아이템이 축소될 수 있도록 허용
+  height: 40px;
+  scrollbar-width: none; // Firefox
+  -ms-overflow-style: none; // IE/Edge
+  padding: 0 10px;
+  white-space: nowrap;
+
+  &::-webkit-scrollbar {
+    display: none; // Chrome/Safari
+  }
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    width: 12px;
+    height: 40px;
+    overflow: hidden;
+    z-index: 10;
+  }
+  &::before {
+    left: 20px;
+    background: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 1),
+      rgba(255, 255, 255, 0)
+    );
+  }
+  &::after {
+    right: 20px;
+    background: linear-gradient(
+      to left,
+      rgba(255, 255, 255, 1),
+      rgba(255, 255, 255, 0)
+    );
+  }
+
+  .tab {
+    position: relative;
+    flex-shrink: 0;
+    white-space: nowrap; // 텍스트 줄바꿈 방지
+    overflow: hidden; // 넘치는 텍스트 숨김
+    padding: 0 20px;
+    height: 34px;
+    line-height: 34px;
+    border-radius: 10px 10px 0 0;
+    font-size: 15px;
+    font-weight: 500;
+    transition: height 0.3s ease;
+    cursor: pointer;
+
+    &.active {
+      height: 40px;
+      line-height: 40px;
+      border-bottom: none;
+    }
+  }
+}
+
+.btn-scroll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  min-width: 20px;
+  height: 34px; // 탭의 높이와 맞춤 (padding 0.5rem * 2 + 텍스트 높이)
+  margin-top: 3px;
+  background: #e7e6ed;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  z-index: 1;
+
+  img {
+    width: 8px;
+    height: 10px;
+    filter: brightness(0) invert(0.5); // 회색으로 변경
+  }
+
+  &:hover:not(:disabled) {
+    background: #d6d4e3;
+  }
+
+  &:disabled {
+    background: #e7e6de;
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+.btn-scroll.left {
+  left: 0;
+}
+.btn-scroll.right {
+  right: 0;
+}
+
+.tab-buttons {
+  flex-shrink: 0;
+}
+
+.symbol-image-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+
+  .symbol-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+    }
+  }
+}
+
+.no-symbol-message {
+  color: #aaaaaa;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.formula-link {
+  color: #3b82f6;
+  text-decoration: none;
+  text-underline-offset: 3.5px;
+  cursor: pointer;
+
+  &:hover {
+    color: #2563eb;
+    text-decoration: underline;
+  }
+
+  &:visited {
+    color: #7c3aed;
+  }
+}
+
+.delete-symbol-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 100%;
+  background: url(../../assets/icons/ico_delete-symbol.svg) no-repeat center /
+    8px auto;
+  background-color: rgba(62, 67, 94, 0.7);
+  cursor: pointer;
+  transition: background-color 0.3s ease-in-out;
+  z-index: 10;
+
+  &:hover {
+    background-color: rgba(62, 67, 94, 1);
+  }
+}
+</style>

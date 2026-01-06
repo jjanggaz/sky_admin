@@ -1,0 +1,756 @@
+<template>
+  <div class="structure-page">
+    <!-- 검색 및 필터 바 -->
+    <div class="search-filter-bar">
+      <div class="filter-group">
+        <div class="filter-item">
+          <label for="unit">{{ t("common.unit") }}</label>
+          <select
+            id="unit"
+            v-model="selectedUnit"
+            class="form-select"
+            @change="handleSearch"
+          >
+            <option value="">{{ t("common.select") }}</option>
+            <option
+              v-for="unit in structureStore.unitSystems"
+              :key="unit.unit_system_id"
+              :value="unit.system_code"
+            >
+              {{ unit.system_name }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label for="structureType">{{
+            t("common.structureMajorCategory")
+          }}</label>
+          <select
+            id="structureType"
+            v-model="selectedStructureType"
+            class="form-select"
+            @change="handleStructureTypeChange(), handleSearch()"
+          >
+            <option value="">{{ t("common.all") }}</option>
+            <option
+              v-for="type in structureStore.secondDepth"
+              :key="type.code_id"
+              :value="type.code_key"
+            >
+              {{ type.code_value }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-item" style="margin-right: 10px">
+          <label for="structureTypeDetail">{{
+            t("columns.machine.structureTypeDetail")
+          }}</label>
+          <select
+            id="structureTypeDetail"
+            v-model="selectedStructureTypeDetail"
+            class="form-select"
+            @change="handleSearch"
+          >
+            <option value="">{{ t("common.select") }}</option>
+            <option
+              v-for="form in structureStore.thirdDepth"
+              :key="form.code_id"
+              :value="form.code_key"
+            >
+              {{ form.code_value }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <button class="btn btn-search" @click="handleSearch">
+            {{ t("common.search") }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 구조물 리스트 헤더 -->
+    <div class="structure-list-header">
+      <h2>{{ t("common.structureList") }}</h2>
+      <div class="action-buttons">
+        <button class="btn btn-register" @click="openRegistModal">
+          {{ t("common.register") }}
+        </button>
+        <button
+          class="btn btn-edit"
+          @click="handleEdit"
+          :disabled="selectedItems.length !== 1"
+        >
+          {{ t("common.edit") }}
+        </button>
+        <button
+          class="btn btn-delete"
+          @click="handleDelete"
+          :disabled="selectedItems.length === 0"
+        >
+          {{ t("common.delete") }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 데이터 테이블 -->
+    <div class="table-wrapper">
+      <DataTable
+        :columns="tableColumns"
+        :data="paginatedStructureList"
+        :loading="loading"
+        :selectable="true"
+        :selected-items="selectedItems"
+        selection-mode="multiple"
+        :show-select-all="true"
+        :select-header-text="t('common.selectColumn')"
+        :row-key="'structure_id'"
+        :maxHeight="'100%'"
+        @selection-change="handleSelectionChange"
+        @sort-change="handleSortChange"
+      >
+        <!-- 순번 슬롯 -->
+        <template #cell-no="{ index }">
+          {{ (currentPage - 1) * pageSize + index + 1 }}
+        </template>
+
+        <!-- 계산식 파일 다운로드 슬롯 -->
+        <template #cell-formula_file_name="{ item }">
+          <span
+            v-if="item.formula?.download_url"
+            class="download-link"
+            @click="
+              downloadFile(item.formula.download_url, item.formula_file_name)
+            "
+          >
+            {{ item.formula_file_name }}
+          </span>
+          <span v-else>{{ item.formula_file_name }}</span>
+        </template>
+
+        <!-- 3D 모델 파일 다운로드 슬롯 -->
+        <template #cell-dtdx_model_file_name="{ item }">
+          <span
+            v-if="item.dtdx_model?.download_url"
+            class="download-link"
+            @click="
+              downloadFile(
+                item.dtdx_model.download_url,
+                item.dtdx_model_file_name
+              )
+            "
+          >
+            {{ item.dtdx_model_file_name }}
+          </span>
+          <span v-else>{{ item.dtdx_model_file_name }}</span>
+        </template>
+
+        <!-- REVIT 모델 파일 다운로드 슬롯 -->
+        <template #cell-rvt_model_file_name="{ item }">
+          <span
+            v-if="item.rvt_model?.download_url"
+            class="download-link"
+            @click="
+              downloadFile(item.rvt_model.download_url, item.rvt_model_file_name)
+            "
+          >
+            {{ item.rvt_model_file_name }}
+          </span>
+          <span v-else>{{ item.rvt_model_file_name }}</span>
+        </template>
+
+        <!-- 생성일자 포맷팅 슬롯 -->
+        <template #cell-created_at="{ value }">
+          {{ formatDate(value) }}
+        </template>
+      </DataTable>
+    </div>
+
+    <!-- 페이징 -->
+    <div class="pagination-container">
+      <div class="total-count">
+        {{
+          t("common.totalCount", {
+            count: structureStore.searchResults?.total || 0,
+          })
+        }}
+      </div>
+      <Pagination
+        :current-page="currentPage"
+        :total-pages="totalPagesComputed"
+        @page-change="handlePageChange"
+      />
+    </div>
+
+    <!-- 등록/수정 모달: 내부 탭 구성 -->
+    <div v-if="isRegistModalOpen" class="modal-overlay">
+      <div class="modal-container" style="max-width: 1600px; width: 90%">
+        <div class="modal-header">
+          <h3>{{ isEditMode ? t("common.edit") : t("common.register") }}</h3>
+          <button
+            class="close-btn"
+            @click="closeRegistModal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <template v-if="!isEditMode">
+            <StructureRegisterTab ref="registerTabRef" />
+          </template>
+          <template v-else>
+            <StructureUpdateTab
+              ref="updateTabRef"
+              :selected-item="
+                selectedItems.length > 0 ? selectedItems[0] : undefined
+              "
+            />
+          </template>
+        </div>
+        <div class="modal-footer lg">
+          <button
+            v-if="!isEditMode"
+            class="btn btn-primary"
+            @click="onChildRegister"
+          >
+            {{ t("common.register") }}
+          </button>
+          <button v-else class="btn btn-primary" @click="onChildUpdate">
+            {{ t("common.edit") }}
+          </button>
+          <button class="btn btn-secondary" @click="closeRegistModal">
+            {{ t("common.close") }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from "vue";
+import Pagination from "@/components/common/Pagination.vue";
+import DataTable, { type TableColumn } from "@/components/common/DataTable.vue";
+import StructureRegisterTab from "./components/StructureRegisterTab.vue";
+import StructureUpdateTab from "./components/StructureUpdateTab.vue";
+import { useI18n } from "vue-i18n";
+import { useTranslateMessage } from "@/utils/translateMessage";
+import { useStructureStore } from "@/stores/structureStore";
+
+const { t } = useI18n();
+
+// 백엔드에서 반환되는 메시지가 다국어 키인 경우 번역 처리
+const translateMessage = useTranslateMessage();
+
+const structureStore = useStructureStore();
+const registerTabRef = ref<InstanceType<typeof StructureRegisterTab> | null>(
+  null
+);
+const updateTabRef = ref<InstanceType<typeof StructureUpdateTab> | null>(null);
+
+// 모달 컴포넌트는 일반 컴포넌트로 변경됨
+
+interface StructureItem {
+  structure_id: string;
+  structure_name: string;
+  root_structure_type: string;
+  root_structure_type_info?: {
+    code_key: string;
+    code_value: string;
+    code_value_en: string;
+  };
+  structure_type: string;
+  unit_system_code: string;
+  formula_file_name: string;
+  dtdx_model_file_name: string;
+  rvt_model_file_name: string;
+  thumbnail_file_name: string;
+  created_at: string;
+  description: string;
+  // 원본 중첩 객체들 (필요시 사용)
+  formula?: {
+    original_filename: string;
+    formula_name: string;
+    download_url?: string;
+    formula_id?: string;
+  };
+  dtdx_model?: {
+    original_filename: string;
+    download_url?: string;
+    model_file_id?: string;
+  };
+  rvt_model?: {
+    original_filename: string;
+    download_url?: string;
+    model_file_id?: string;
+  };
+  thumbnail?: {
+    original_filename: string;
+    download_url?: string;
+    symbol_id?: string;
+  };
+}
+
+interface RegistForm {
+  name: string;
+  code: string;
+  type: string;
+  description: string;
+}
+
+// 테이블 컬럼 설정
+const tableColumns: TableColumn[] = [
+  {
+    key: "no",
+    title: t("columns.machine.no"),
+    width: "60px",
+    sortable: false,
+    align: "center",
+  },
+  {
+    key: "root_structure_type",
+    title: t("common.structureMajorCategory"),
+    width: "140px",
+    sortable: false,
+    align: "center",
+  },
+  {
+    key: "structure_type",
+    title: t("columns.machine.structureType"),
+    width: "140px",
+    sortable: true,
+    align: "center",
+  },
+  {
+    key: "unit_system_code",
+    title: t("common.unit"),
+    width: "100px",
+    sortable: false,
+    align: "center",
+  },
+  {
+    key: "formula_file_name",
+    title: t("columns.machine.formula"),
+    width: "120px",
+    sortable: false,
+    align: "center",
+  },
+  {
+    key: "dtdx_model_file_name",
+    title: t("columns.machine.model3d"),
+    width: "160px",
+    sortable: false,
+    align: "center",
+  },
+  {
+    key: "rvt_model_file_name",
+    title: t("columns.machine.revitModel"),
+    width: "140px",
+    sortable: false,
+    align: "center",
+  },
+  {
+    key: "created_at",
+    title: t("common.creationDate"),
+    width: "120px",
+    sortable: false,
+    align: "center",
+  },
+  {
+    key: "description",
+    title: t("columns.machine.remarks"),
+    width: "140px",
+    sortable: false,
+    align: "center",
+  },
+];
+
+const structureList = ref<StructureItem[]>([]);
+const loading = ref(false);
+const currentPage = ref(1);
+const pageSize = ref(20);
+const selectedItems = ref<StructureItem[]>([]);
+const selectedUnit = ref("");
+const selectedStructureType = ref("");
+const selectedStructureTypeDetail = ref("");
+const isRegistModalOpen = ref(false);
+const isEditMode = ref(false);
+const sortColumn = ref<string | null>(null);
+const sortOrder = ref<"asc" | "desc" | null>(null);
+const newStructure = ref<RegistForm>({
+  name: "",
+  code: "",
+  type: "",
+  description: "",
+});
+
+const totalPagesComputed = computed(
+  () => (structureStore.searchResults as any)?.total_pages || 1
+);
+
+const paginatedStructureList = computed(() => {
+  return structureList.value; // API에서 이미 페이징된 데이터를 받아옴
+});
+
+// (기존 단일 등록 폼 유효성 제거)
+
+const handleSelectionChange = (selected: StructureItem[]) => {
+  selectedItems.value = selected;
+};
+
+// 페이지 변경 (Machine.vue 패턴 적용)
+const handlePageChange = async (page: number) => {
+  currentPage.value = page;
+  selectedItems.value = []; // 체크된 row 초기화
+  await loadData();
+};
+
+// 검색 처리 (Machine.vue 패턴 적용)
+const handleSearch = async () => {
+  selectedItems.value = []; // 체크된 row 초기화
+  currentPage.value = 1;
+  // 검색 시 정렬 초기화
+  sortColumn.value = null;
+  sortOrder.value = null;
+  await loadData();
+};
+
+// 정렬 변경 핸들러
+const handleSortChange = async (sortInfo: {
+  key: string | null;
+  direction: "asc" | "desc" | null;
+}) => {
+  sortColumn.value = sortInfo.key ?? null;
+  sortOrder.value = sortInfo.direction ?? null;
+
+  // 정렬 변경 시 첫 페이지로 이동하고 데이터 다시 로드
+  currentPage.value = 1;
+  await loadData();
+};
+
+const openRegistModal = () => {
+  isEditMode.value = false;
+  newStructure.value = {
+    name: "",
+    code: "",
+    type: "",
+    description: "",
+  };
+  isRegistModalOpen.value = true;
+};
+
+const closeRegistModal = async () => {
+  isRegistModalOpen.value = false;
+  isEditMode.value = false;
+  // 모달 닫을 때 데이터 새로고침
+  await loadData();
+};
+
+const handleEdit = () => {
+  if (selectedItems.value.length === 0) {
+    alert(t("messages.warning.pleaseSelectItemToEdit"));
+    return;
+  }
+  if (selectedItems.value.length > 1) {
+    alert(t("messages.warning.pleaseSelectOneItemToEdit"));
+    return;
+  }
+
+  isEditMode.value = true;
+  newStructure.value = {
+    name: selectedItems.value[0].structure_name,
+    code: selectedItems.value[0].structure_type,
+    type: selectedItems.value[0].structure_type,
+    description: selectedItems.value[0].description,
+  };
+  isRegistModalOpen.value = true;
+};
+
+const handleDelete = async () => {
+  if (selectedItems.value.length === 0) {
+    alert(t("messages.warning.pleaseSelectItemToDelete"));
+    return;
+  }
+
+  const confirmMessage =
+    selectedItems.value.length > 1
+      ? t("messages.confirm.deleteItems", { count: selectedItems.value.length })
+      : t("messages.confirm.deleteStructure", {
+          name: selectedItems.value[0].structure_name,
+        });
+
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const selectedItem of selectedItems.value) {
+    try {
+      const deleteParams: {
+        dtdx_model_file_id?: string;
+        formula_id?: string;
+        rvt_model_file_id?: string;
+        thumbnail_symbol_id?: string;
+      } = {};
+
+      if (selectedItem.dtdx_model?.model_file_id) {
+        deleteParams.dtdx_model_file_id = selectedItem.dtdx_model.model_file_id;
+      }
+
+      if (selectedItem.formula?.formula_id) {
+        deleteParams.formula_id = selectedItem.formula.formula_id;
+      }
+
+      if (selectedItem.rvt_model?.model_file_id) {
+        deleteParams.rvt_model_file_id = selectedItem.rvt_model.model_file_id;
+      }
+
+      if (selectedItem.thumbnail?.symbol_id) {
+        deleteParams.thumbnail_symbol_id = selectedItem.thumbnail.symbol_id;
+      }
+
+      await structureStore.deleteStructure(
+        selectedItem.structure_id,
+        deleteParams
+      );
+
+      structureList.value = structureList.value.filter(
+        (item) => item.structure_id !== selectedItem.structure_id
+      );
+      successCount += 1;
+    } catch (error) {
+      console.error("삭제 실패:", error);
+      failCount += 1;
+    }
+  }
+
+  selectedItems.value = [];
+
+  if (successCount > 0) {
+    if (failCount > 0) {
+      alert(`${successCount}건 삭제 성공, ${failCount}건 삭제 실패`);
+    } else {
+      alert(t("messages.success.structureDeleteSuccess"));
+    }
+    await loadData();
+  } else {
+    const errorMessage = translateMessage(
+      undefined,
+      "messages.error.structureDeleteFail"
+    );
+    alert(errorMessage);
+  }
+};
+
+const onChildRegister = async () => {
+  try {
+    await registerTabRef.value?.onRegister?.();
+    // 등록 완료 후 데이터 새로고침
+    await loadData();
+  } catch (error) {
+    console.error("등록 중 오류 발생:", error);
+  }
+};
+
+const onChildUpdate = async () => {
+  try {
+    await updateTabRef.value?.onUpdate?.();
+    // 수정 완료 후 데이터 새로고침 및 모달 닫기
+    await loadData();
+    await closeRegistModal();
+  } catch (error) {
+    console.error("수정 중 오류 발생:", error);
+  }
+};
+
+// 파일 다운로드 함수
+const downloadFile = (downloadUrl: string, fileName: string) => {
+  if (!downloadUrl) {
+    alert("다운로드할 파일이 없습니다.");
+    return;
+  }
+  // 새 창에서 다운로드 실행
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = fileName;
+  link.target = "_blank";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// 날짜 포맷팅 함수
+const formatDate = (dateString: string) => {
+  if (!dateString) return "-";
+
+  try {
+    const date = new Date(dateString);
+    return date.toISOString().split("T")[0]; // YYYY-MM-DD 형식
+  } catch (error) {
+    console.error("날짜 포맷팅 오류:", error);
+    return dateString; // 원본 문자열 반환
+  }
+};
+
+// 편집 로직 제거됨
+
+// 데이터 로드 함수
+const loadData = async () => {
+  try {
+    // 체크된 row 초기화
+    selectedItems.value = [];
+
+    // API 호출로 구조물 검색 리스트 조회
+    const searchParams: Record<string, unknown> = {
+      search_field: "",
+      search_value: "",
+      page: currentPage.value,
+      page_size: pageSize.value,
+      root_structure_type: selectedStructureType.value,
+      structure_type: selectedStructureTypeDetail.value,
+      unit: selectedUnit.value,
+    };
+
+    // 정렬 설정 (헤더 클릭 시 정렬 정보 사용)
+    if (sortColumn.value && sortOrder.value) {
+      searchParams.order_by = sortColumn.value;
+      searchParams.order_direction = sortOrder.value;
+    }
+
+    await structureStore.fetchSearchList(searchParams);
+
+    // API 응답 데이터를 structureList에 설정
+    if ((structureStore.searchResults as any)?.items) {
+      const apiData = (structureStore.searchResults as any).items;
+      structureList.value = apiData.map((item: any) => {
+        // localStorage의 wai_lang 값에 따라 표시할 값 결정
+        const waiLang = localStorage.getItem("wai_lang");
+        const rootStructureTypeDisplay =
+          waiLang === "en" && item.root_structure_type_info?.code_value_en
+            ? item.root_structure_type_info.code_value_en
+            : item.root_structure_type_info?.code_value || "-";
+
+        return {
+          structure_id: item.structure_id,
+          structure_name: item.structure_name,
+          root_structure_type: rootStructureTypeDisplay,
+          root_structure_type_info: item.root_structure_type_info,
+          structure_type: item.structure_type,
+          unit_system_code: item.unit_system_code,
+          formula_file_name: item.formula?.original_filename || "-",
+          dtdx_model_file_name: item.dtdx_model?.original_filename || "-",
+          rvt_model_file_name: item.rvt_model?.original_filename || "-",
+          thumbnail_file_name: item.thumbnail?.original_filename || "-",
+          created_at: item.created_at,
+          description: item.description || "-",
+          // 원본 데이터도 유지 (필요시 사용)
+          formula: item.formula
+            ? {
+                ...item.formula,
+                file_uri: item.formula.file_uri,
+                formula_id: item.formula.formula_id,
+              }
+            : undefined,
+          dtdx_model: item.dtdx_model
+            ? {
+                ...item.dtdx_model,
+                file_uri: item.dtdx_model.file_uri,
+                model_file_id: item.dtdx_model.model_file_id,
+              }
+            : undefined,
+          rvt_model: item.rvt_model
+            ? {
+                ...item.rvt_model,
+                file_uri: item.rvt_model.file_uri,
+                model_file_id: item.rvt_model.model_file_id,
+              }
+            : undefined,
+          thumbnail: item.thumbnail
+            ? {
+                ...item.thumbnail,
+                file_uri: item.thumbnail.symbol_uri,
+                symbol_id: item.thumbnail.symbol_id,
+              }
+            : undefined,
+        };
+      });
+    } else {
+      structureList.value = [];
+    }
+  } catch (error) {
+    console.error("데이터 로드 실패:", error);
+    // 에러 발생 시 빈 배열로 초기화
+    structureList.value = [];
+  }
+};
+
+// 구조물 대분류 변경 시 하위 구조물 타입 로드
+const handleStructureTypeChange = async () => {
+  selectedStructureTypeDetail.value = "";
+  // thirdDepth 초기화
+  structureStore.thirdDepth = [];
+
+  if (selectedStructureType.value) {
+    await structureStore.fetchThirdDepth(selectedStructureType.value, 3);
+  }
+};
+
+onMounted(async () => {
+  await structureStore.fetchCommonCodes("STRUCT_WWTP");
+  await loadData();
+});
+</script>
+
+<style scoped lang="scss">
+@use "sass:color";
+
+// 반응형 브레이크포인트
+$mobile: 768px;
+$tablet: 1024px;
+
+.structure-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 60px);
+  padding: 40px 24px;
+
+  @media (max-width: 768px) {
+    padding: 40px 0;
+  }
+}
+
+.search-filter-bar {
+  flex-shrink: 0;
+  margin-bottom: 20px;
+}
+
+.structure-list-header {
+  flex-shrink: 0;
+  margin-bottom: 20px;
+}
+
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+}
+
+.pagination-container {
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+
+// 다운로드 링크 스타일
+.download-link {
+  color: $primary-color;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: color.scale($primary-color, $lightness: -20%);
+    text-decoration: underline;
+    text-underline-offset: 3.5px;
+  }
+}
+</style>
