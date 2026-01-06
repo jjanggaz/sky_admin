@@ -1,11 +1,6 @@
 <template>
   <aside class="sidebar"> <!-- :class="{ closed : isclosed}" -->
     <div class="sidebar-content">
-      <!-- <img src="/public/images/logo/logo_wai_sd.svg" alt="" /> -->
-       <a href="/code" title="코드관리 바로가기">
-         <img :src="logoWaiSd" alt="WAI SD Logo" />
-       </a>
-
       <!-- Navigation Menu -->
       <nav class="nav-menu">
         <!-- 권한에 따른 메뉴 동적 표시 -->
@@ -41,7 +36,6 @@ import { computed } from "vue";
 // import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
-import logoWaiSd from "@/assets/images/logo/logo_wai_sd.svg";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
@@ -177,15 +171,6 @@ const availableMenus = computed(() => {
     height: 100%;
     display: flex;
     flex-direction: column;
-    
-    img {
-      display: block;
-      width: 220px;
-      height: auto;
-      margin: $spacing-lg auto;
-      padding: 0 20px 0 $spacing-md;
-      object-fit: contain;
-    }
   }
 
   .nav-menu {

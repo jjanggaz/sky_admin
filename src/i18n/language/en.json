@@ -7,7 +7,7 @@
   },
   "dashboard": {
     "welcome": "Welcome!",
-    "title": "This is the WAI DESIGN Management System Dashboard.",
+    "title": "This is the SKY TEST Management System Dashboard.",
     "serverCapacity": {
       "title": "Server Capacity Status",
       "total": "Total",
@@ -793,7 +793,7 @@
   "menuManagement": {
     "title": "Menu Management",
     "menuType": "Menu Type",
-    "waiDesignMenu": "Wai Design Menu",
+    "waiDesignMenu": "SKY TEST Menu",
     "adminMenu": "Administrator Menu",
     "menuList": "Menu List",
     "editMenu": "Edit Menu",
@@ -1484,7 +1484,7 @@
     "codeManagement": "Code Management",
     "cost": "Cost Management",
     "test": "Test",
-    "default": "WAI DESIGN"
+    "default": "SKY TEST"
   },
   "tabs": {
     "model": {

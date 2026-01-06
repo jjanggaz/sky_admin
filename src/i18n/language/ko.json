@@ -7,7 +7,7 @@
   },
   "dashboard": {
     "welcome": "환영합니다!",
-    "title": "WAI DESIGN 관리 시스템 대시보드입니다.",
+    "title": "SKY TEST 관리 시스템 대시보드입니다.",
     "serverCapacity": {
       "title": "서버용량 상태",
       "total": "전체",
@@ -711,7 +711,7 @@
   "menuManagement": {
     "title": "메뉴 관리",
     "menuType": "메뉴 유형",
-    "waiDesignMenu": "Wai design 메뉴",
+    "waiDesignMenu": "SKY TEST 메뉴",
     "adminMenu": "관리자 메뉴",
     "menuList": "메뉴 목록",
     "editMenu": "메뉴 편집",
@@ -1480,7 +1480,7 @@
     "codeManagement": "코드 관리",
     "cost": "단가 관리",
     "test": "테스트",
-    "default": "WAI DESIGN"
+    "default": "SKY TEST"
   },
   "tabs": {
     "model": {

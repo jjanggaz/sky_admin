@@ -1,4 +1,4 @@
-# 🎨 WAI DESIGN 컴포넌트 자산 가이드
+# 🎨 SKY TEST 컴포넌트 자산 가이드
 
 ## 📁 폴더 구조
 
@@ -83,7 +83,7 @@ const dynamicImage = computed(() => {
 - **동사-명사** 형태
 - 예: `add-user.svg`, `edit-item.svg`, `delete-confirm.svg`
 
-## 🎯 WAI DESIGN 프로젝트 전용 자산
+## 🎯 SKY TEST 프로젝트 전용 자산
 
 ### 네비게이션 아이콘
 - `dashboard.svg` - 대시보드

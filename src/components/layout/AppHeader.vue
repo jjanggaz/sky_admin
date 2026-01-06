@@ -19,9 +19,10 @@
           ><br />
           <span class="user-info">{{ userRole ? ` (${userRole})` : "" }}</span>
         </span>
-        <button class="logout-btn" @click="handleLogout">
+        <!-- 로그아웃 버튼 숨김 -->
+        <!-- <button class="logout-btn" @click="handleLogout">
           {{ t("common.logout") }}
-        </button>
+        </button> -->
       </div>
     </div>
   </header>
