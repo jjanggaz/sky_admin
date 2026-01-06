@@ -1,5 +1,5 @@
 <template>
-  <header class="app-header">
+  <header class="app-header" :style="{ left: headerLeft, display: 'none' }">
     <div class="header-content">
       <!-- Page Title -->
       <div class="page-title-section">
@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../../stores/authStore";
-import { computed } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import TabNavigation from "@/components/common/TabNavigation.vue";
 import type { TabItem } from "@/components/common/TabNavigation.vue";
 import Date from "../../utils/headerDate.vue";
@@ -45,6 +45,27 @@ const route = useRoute();
 const authStore = useAuthStore();
 const userName = authStore.user?.fullName;
 const userRole = authStore.user?.roleName;
+
+// 사이드바 숨김 상태
+const isSidebarClosed = ref(false);
+
+// 사이드바 토글 이벤트 리스너
+const handleSidebarToggle = (event: CustomEvent) => {
+  isSidebarClosed.value = event.detail.isClosed;
+};
+
+onMounted(() => {
+  window.addEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+});
+
+// 헤더 left 위치 계산
+const headerLeft = computed(() => {
+  return isSidebarClosed.value ? '0px' : '130px';
+});
 
 console.log("[AppHeader.vue] store/authStore.ts > authStore.user : ", userName);
 console.log(
@@ -223,7 +244,6 @@ const currentPageTitle = computed<string>(() => {
 .app-header {
   position: fixed;
   top: 0;
-  left: 260px;
   right: 0;
   height: 70px;
   background-color: #ffffff;

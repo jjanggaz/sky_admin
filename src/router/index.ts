@@ -26,7 +26,7 @@ import { machineRoute } from "./routes/machine";
 import { userRoute } from "./routes/user";
 import { vendorsRoute } from "./routes/vendors";
 import { codeRoute } from "./routes/code";
-import { testRoute } from "./routes/test";
+import { testRoute, campaignRoute, campaignPriorityRoute } from "./routes/test";
 import { costRoute } from "./routes/cost";
 
 import { useAuthStore } from "../stores/authStore";
@@ -67,6 +67,8 @@ const baseRoutes: RouteRecordRaw[] = [
     component: NotFound,
   },
   testRoute,
+  campaignRoute,
+  campaignPriorityRoute,
 ];
 
 // 코드별 라우트 매핑

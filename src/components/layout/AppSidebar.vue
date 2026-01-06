@@ -1,19 +1,30 @@
 <template>
-  <aside class="sidebar"> <!-- :class="{ closed : isclosed}" -->
+  <!-- 숨기기 버튼 (항상 보이도록 사이드바 외부에 배치) -->
+  <div class="sidebar-toggle" :class="{ closed: isClosed }">
+    <button class="toggle-btn" @click="toggleSidebar" :title="isClosed ? '메뉴 보이기' : '메뉴 숨기기'">
+      <span class="toggle-icon">{{ isClosed ? '▶' : '◀' }}</span>
+    </button>
+  </div>
+
+  <aside class="sidebar" :class="{ closed: isClosed }">
     <div class="sidebar-content">
       <!-- Navigation Menu -->
       <nav class="nav-menu">
+        <!-- 캠페인 등록 버튼 (제일 위) -->
+        <router-link to="/campaign" class="nav-item campaign-item campaign-item-first">
+          <span class="nav-text">캠페인 등록</span>
+        </router-link>
+        <br />
+        <br />
+
+        <!-- 캠페인 조회.수정 버튼 (2번째) -->
+        <router-link to="/campaign-priority" class="nav-item campaign-item">
+          <span class="nav-text">캠페인 조회.수정</span>
+        </router-link>
+
         <!-- 권한에 따른 메뉴 동적 표시 -->
         <template v-for="menuItem in availableMenus" :key="menuItem.path">
           <router-link :to="menuItem.path" class="nav-item">
-            <span class="nav-icon">
-              <img
-                :src="menuItem.icon"
-                alt="menu icon"
-                width="24"
-                height="24"
-              />
-            </span>
             <span class="nav-text">{{ t(menuItem.titleKey) }}</span>
           </router-link>
         </template>
@@ -32,8 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-// import { ref, onMounted, onUnmounted } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "vue-i18n";
@@ -41,6 +51,16 @@ import { useI18n } from "vue-i18n";
 const { t } = useI18n();
 const router = useRouter();
 const authStore = useAuthStore();
+
+// 사이드바 숨김 상태
+const isClosed = ref(false);
+
+// 사이드바 토글 함수
+const toggleSidebar = () => {
+  isClosed.value = !isClosed.value;
+  // 이벤트를 통해 AppHeader에 상태 전달
+  window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: { isClosed: isClosed.value } }));
+};
 
 // 사이드바
 // const breakPoint = 1024;
@@ -153,24 +173,72 @@ const availableMenus = computed(() => {
 
 <style scoped lang="scss">
 .sidebar {
-  //position: fixed;
+  position: relative;
   left: 0;
   top: 0;
-  width: 260px;
+  width: 130px;
   height: 100vh;
-  background-color: $background-darker;
+  background-color: #4A90E2;
   z-index: 100;
   transform: translateX(0);
-  transition: transform .3s ease;
+  transition: transform .3s ease, width .3s ease;
 
-  // &.closed {
-  //   transform: translateX(-100%);
-  // }
+  &.closed {
+    transform: translateX(-100%);
+    width: 0;
+    overflow: hidden;
+  }
 
   .sidebar-content {
     height: 100%;
     display: flex;
     flex-direction: column;
+    position: relative;
+  }
+
+  &.closed {
+    transform: translateX(-100%);
+    width: 0;
+    overflow: hidden;
+  }
+}
+
+.sidebar-toggle {
+  position: fixed;
+  top: 10px;
+  left: 130px;
+  z-index: 101;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: left .3s ease;
+
+  &.closed {
+    left: 0;
+  }
+
+  .toggle-btn {
+    width: 30px;
+    height: 40px;
+    background-color: #4A90E2;
+    border: 1px solid rgba($text-white, 0.2);
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: rgba($text-white, 0.1);
+    }
+
+    .toggle-icon {
+      color: $text-white;
+      font-size: 14px;
+      font-weight: 600;
+    }
   }
 
   .nav-menu {
@@ -178,13 +246,16 @@ const availableMenus = computed(() => {
     padding: 20px 0;
 
     .nav-item {
-      display: flex;
+      display: block;
       align-items: center;
-      padding: 0 32px;
-      color: rgba($text-white, 0.7);
+      padding: 12px 16px;
+      color: $text-white;
       text-decoration: none;
       cursor: pointer;
       transition: $transition-base;
+      margin-bottom: 8px;
+      width: 100%;
+      box-sizing: border-box;
 
       &:hover {
         background: rgba(39, 155, 216, 0.15);
@@ -203,20 +274,39 @@ const availableMenus = computed(() => {
 
       .nav-icon {
         font-size: 18px;
-        margin-right: $spacing-md;
+        margin-right: $spacing-sm;
         width: 24px;
         height: 60px;
         text-align: center;
         display: flex;
         align-items: center;
         justify-content: center;
+
+        .campaign-icon {
+          font-size: 20px;
+        }
       }
 
       .nav-text {
-        font-size: 18px;
+        font-size: 14px;
         font-weight: 600;
         line-height: 20px;
         letter-spacing: -0.2px;
+        white-space: normal;
+        word-break: break-word;
+        display: block;
+        width: 100%;
+      }
+
+      &.campaign-item {
+        border-bottom: 1px solid rgba($text-white, 0.1);
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+
+        &.campaign-item-first {
+          margin-bottom: 32px;
+          padding-bottom: 20px;
+        }
       }
     }
   }

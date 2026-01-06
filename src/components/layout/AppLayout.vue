@@ -52,9 +52,9 @@ import AppHeader from './AppHeader.vue'
 .main-content {
   flex: 1;
   padding: 16px 16px 40px;
-  padding-top: 70px;
+  padding-top: 16px;
   background-color: #ffffff;
-  min-height: calc(100vh - 70px); // Header height
+  min-height: calc(100vh - 0px); // Header height
   overflow: hidden;
 }
 
