@@ -2,20 +2,23 @@
   <div class="campaign-ob-page">
     <!-- 탭 네비게이션 -->
     <div class="tab-navigation">
-      <div 
-        class="tab-item" 
-        :class="{ active: activeTab === '내 OBTM 현황' }"
-        @click="activeTab = '내 OBTM 현황'"
-      >
-        내 OBTM 현황
+      <div class="tab-left">
+        <div
+          class="tab-item"
+          :class="{ active: activeTab === '내 OBTM 현황' }"
+          @click="activeTab = '내 OBTM 현황'"
+        >
+          내 OBTM 현황
+        </div>
+        <div
+          class="tab-item"
+          :class="{ active: activeTab === '내 OBTM 리스트' }"
+          @click="activeTab = '내 OBTM 리스트'"
+        >
+          내 OBTM 리스트
+        </div>
       </div>
-      <div 
-        class="tab-item"
-        :class="{ active: activeTab === '내 OBTM 리스트' }"
-        @click="activeTab = '내 OBTM 리스트'"
-      >
-        내 OBTM 리스트
-      </div>
+      <button class="btn-close" type="button" @click="handleClose" aria-label="닫기">X</button>
     </div>
 
     <!-- 메인 콘텐츠 영역 -->
@@ -144,10 +147,16 @@ import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Pagination from "@/components/common/Pagination.vue";
 
+const emit = defineEmits(["close"]);
+
 const { t } = useI18n();
 
 const activeTab = ref("내 OBTM 현황");
 const selectedRowIndex = ref<number | null>(null);
+
+const handleClose = () => {
+  emit("close");
+};
 
 const handleRowSelect = (index: number) => {
   selectedRowIndex.value = index;
@@ -278,8 +287,16 @@ listTotalCount.value = listData.value.length;
 
 .tab-navigation {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: #4fd1c7; // 밝은 청록색
   border-bottom: 1px solid #38b2ac;
+
+  .tab-left {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
 
   .tab-item {
     padding: 12px 24px;
@@ -296,6 +313,23 @@ listTotalCount.value = listData.value.length;
     &.active {
       background: rgba(255, 255, 255, 0.2);
       font-weight: 600;
+    }
+  }
+
+  .btn-close {
+    margin-right: 10px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    border-radius: 6px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
     }
   }
 }

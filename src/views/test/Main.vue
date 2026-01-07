@@ -1,6 +1,6 @@
 <template>
   <div class="main-page">
-    <div class="center-text">SKYLIFE CAMPAIGN PROTOTYPE</div>
+    <div class="center-text">Skylife Campaign Prototype Page</div>
   </div>
 </template>
 

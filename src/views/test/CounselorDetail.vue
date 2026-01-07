@@ -252,7 +252,7 @@
     <div v-if="isCampaignObModalOpen" class="modal-overlay" @click.self="closeCampaignObModal">
       <div class="modal-container campaign-ob-modal">
         <div class="modal-body">
-          <CampaignOb />
+          <CampaignOb @close="closeCampaignObModal" />
         </div>
       </div>
     </div>

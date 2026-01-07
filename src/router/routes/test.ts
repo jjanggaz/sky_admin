@@ -3,6 +3,7 @@ const Test = () => import("@/views/test/Test.vue");
 const Campaign = () => import("@/views/test/Campaign.vue");
 const CampaignPriority = () => import("@/views/test/CampaignPriority.vue");
 const ObtmStatus = () => import("@/views/test/ObtmStatus.vue");
+const Scis = () => import("@/views/test/Scis.vue");
 const Obtm = () => import("@/views/test/Obtm.vue");
 const ObtmAssign = () => import("@/views/test/ObtmAssign.vue");
 const ObtmAssignCenter = () => import("@/views/test/ObtmAssignCenter.vue");
@@ -49,6 +50,17 @@ export const obtmStatusRoute = {
     requiresAuth: false,
     titleKey: "pageTitles.obtmStatus",
     icon: "obtmStatus",
+  },
+};
+
+export const scisRoute = {
+  path: "/scis",
+  name: "Scis",
+  component: Scis,
+  meta: {
+    requiresAuth: false,
+    titleKey: "SCIS",
+    icon: "scis",
   },
 };
 

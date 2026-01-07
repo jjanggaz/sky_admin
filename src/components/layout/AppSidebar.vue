@@ -10,51 +10,16 @@
     <div class="sidebar-content">
       <!-- Navigation Menu -->
       <nav class="nav-menu">
-        <!-- 캠페인 등록 버튼 (제일 위) -->
-        <router-link to="/campaign" class="nav-item campaign-item campaign-item-first">
-          <span class="nav-text">캠페인 등록</span>
-        </router-link>
-        <br />
-        <br />
-
-        <!-- 캠페인 조회.수정 버튼 (2번째) -->
-        <router-link to="/campaign-priority" class="nav-item campaign-item">
-          <span class="nav-text">캠페인 조회.수정</span>
-        </router-link>
-        <br />
-        <br />
-
-        <!-- 센터별 OBTM 현황 버튼 -->
-        <router-link to="/obtm-status" class="nav-item campaign-item">
-          <span class="nav-text">센터별 OBTM 현황</span>
-        </router-link>
-        <br />
-        <br />
-
-        <!-- OBTM DB 등록 버튼 -->
-        <router-link to="/obtm" class="nav-item campaign-item">
-          <span class="nav-text">OBTM DB 등록</span>
-        </router-link>
-        <br />
-        <br />
-
-        <!-- OBTM DB 현황 및 배정 (본사 관리자) 버튼 -->
-        <router-link to="/obtm-assign" class="nav-item campaign-item">
-          <span class="nav-text">OBTM DB 현황 및 배정 (본사 관리자)</span>
-        </router-link>
-        <br />
-        <br />
-
-        <!-- OBTM DB 현황 및 배정 (고객센터 관리자) 버튼 -->
-        <router-link to="/obtm-assign-center" class="nav-item campaign-item">
-          <span class="nav-text">OBTM DB 현황 및 배정 (고객센터 관리자)</span>
+        <!-- (구)SCIS 버튼 (최상단) -->
+        <router-link to="/scis" class="nav-item campaign-item">
+          <span class="nav-text">(구)SCIS</span>
         </router-link>
         <br />
         <br />
 
         <!-- 캠페인 상담화면 버튼 -->
         <router-link to="/counselor" class="nav-item campaign-item">
-          <span class="nav-text">캠페인 상담화면</span>
+          <span class="nav-text">(신)SCIS</span>
         </router-link>
 
         <!-- 권한에 따른 메뉴 동적 표시 -->
@@ -79,12 +44,10 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
-const router = useRouter();
 const authStore = useAuthStore();
 
 // 사이드바 숨김 상태
