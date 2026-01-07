@@ -24,7 +24,7 @@
         </select>
       </div>
       <button class="btn-search">Q</button>
-      <button class="btn-action">🔄</button>
+      <button class="btn-excel" type="button" aria-label="엑셀 다운로드">엑셀</button>
     </div>
 
     <div class="main-layout">
@@ -44,37 +44,19 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>캠페인</td>
-                <td>2025-05-02</td>
-                <td>11:52:14</td>
-                <td>오지*</td>
-                <td>ARS사용자 (99998)</td>
-                <td></td>
-              </tr>
-              <tr>
-                <td>캠페인</td>
-                <td>2025-02-14</td>
-                <td>17:33:51</td>
-                <td>오지*</td>
-                <td>문도현 (600753)</td>
-                <td>본인</td>
-              </tr>
-              <tr>
-                <td>캠페인</td>
-                <td>2025-02-14</td>
-                <td>16:22:27</td>
-                <td>오지*</td>
-                <td>문도현 (600753)</td>
-                <td>본인</td>
-              </tr>
-              <tr>
-                <td>캠페인</td>
-                <td>2025-02-07</td>
-                <td>13:31:38</td>
-                <td>오지*</td>
-                <td>정호인[CRG] (600353)</td>
-                <td>미확인</td>
+              <tr
+                v-for="row in historyRows"
+                :key="row.id"
+                class="history-row"
+                :data-row-id="row.id"
+                @dblclick="handleHistoryRowDblClick"
+              >
+                <td>{{ row.type }}</td>
+                <td>{{ row.date }}</td>
+                <td>{{ row.time }}</td>
+                <td>{{ row.customer }}</td>
+                <td>{{ row.counselor }}</td>
+                <td>{{ row.customerType }}</td>
               </tr>
             </tbody>
           </table>
@@ -146,23 +128,27 @@
 
         <!-- 캠페인 입력 폼 -->
         <div class="campaign-form-section">
-          <div class="form-row">
-            <div class="form-group">
+          <div class="form-row narrow-row">
+            <div class="form-group narrow">
               <label>상담고객명</label>
               <input type="text" value="오지현" />
             </div>
-            <div class="form-group">
+            <div class="form-group narrow">
               <label>아웃바운드</label>
               <select>
                 <option>아웃바운드</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group narrow">
               <label>상담고객분류</label>
               <select>
                 <option>01 본인</option>
               </select>
             </div>
+            <div class="form-spacer"></div>
+          </div>
+
+          <div class="form-row">
             <div class="form-group">
               <label>고객접점채널</label>
               <select>
@@ -182,25 +168,26 @@
             캠페인 - 3002 > 긍정반응 > 가족과 상의
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
+          <div class="form-row narrow-row">
+            <div class="form-group narrow">
               <label>상담유형(대)</label>
               <select>
                 <option>캠페인 - 3002</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group narrow">
               <label>상담유형(중)</label>
               <select>
                 <option>긍정반응</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group narrow">
               <label>상담유형(소)</label>
               <select>
                 <option>가족과 상의</option>
               </select>
             </div>
+            <div class="form-spacer"></div>
           </div>
 
           <div class="form-group full-width">
@@ -264,13 +251,20 @@
     <!-- 캠페인O/B 모달 -->
     <div v-if="isCampaignObModalOpen" class="modal-overlay" @click.self="closeCampaignObModal">
       <div class="modal-container campaign-ob-modal">
-        <div class="modal-header">
-          <h3>O/B 접수</h3>
-          <button class="btn-close" @click="closeCampaignObModal">×</button>
-        </div>
         <div class="modal-body">
           <CampaignOb />
         </div>
+      </div>
+    </div>
+
+    <!-- 캠페인 상담이력 팝업 -->
+    <div
+      v-if="isCampaignHistoryModalOpen"
+      class="modal-overlay"
+      @click.self="closeCampaignHistoryModal"
+    >
+      <div class="modal-container campaign-history-modal">
+        <CampaignHistory @close="closeCampaignHistoryModal" />
       </div>
     </div>
   </div>
@@ -279,6 +273,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import CampaignOb from "./CampaignOb.vue";
+import CampaignHistory from "./CampaignHistory.vue";
 
 const isCampaignObModalOpen = ref(false);
 
@@ -288,6 +283,74 @@ const openCampaignObModal = () => {
 
 const closeCampaignObModal = () => {
   isCampaignObModalOpen.value = false;
+};
+
+type HistoryRow = {
+  id: string;
+  type: string;
+  date: string;
+  time: string;
+  customer: string;
+  counselor: string;
+  customerType: string;
+};
+
+const historyRows = ref<HistoryRow[]>([
+  {
+    id: "h-20250502-115214",
+    type: "캠페인",
+    date: "2025-05-02",
+    time: "11:52:14",
+    customer: "오지*",
+    counselor: "ARS사용자 (99998)",
+    customerType: "",
+  },
+  {
+    id: "h-20250214-173351",
+    type: "캠페인",
+    date: "2025-02-14",
+    time: "17:33:51",
+    customer: "오지*",
+    counselor: "문도현 (600753)",
+    customerType: "본인",
+  },
+  {
+    id: "h-20250214-162227",
+    type: "캠페인",
+    date: "2025-02-14",
+    time: "16:22:27",
+    customer: "오지*",
+    counselor: "문도현 (600753)",
+    customerType: "본인",
+  },
+  {
+    id: "h-20250207-133138",
+    type: "캠페인",
+    date: "2025-02-07",
+    time: "13:31:38",
+    customer: "오지*",
+    counselor: "정호인[CRG] (600353)",
+    customerType: "미확인",
+  },
+]);
+
+const isCampaignHistoryModalOpen = ref(false);
+const selectedHistoryRowId = ref<string | null>(null);
+
+const openCampaignHistoryModal = () => {
+  isCampaignHistoryModalOpen.value = true;
+};
+
+const closeCampaignHistoryModal = () => {
+  isCampaignHistoryModalOpen.value = false;
+  selectedHistoryRowId.value = null;
+};
+
+const handleHistoryRowDblClick = (event: MouseEvent) => {
+  const el = event.currentTarget as HTMLElement | null;
+  const rowId = el?.dataset?.rowId || null;
+  selectedHistoryRowId.value = rowId;
+  openCampaignHistoryModal();
 };
 </script>
 
@@ -349,6 +412,7 @@ const closeCampaignObModal = () => {
       border: 1px solid #ddd;
       border-radius: 4px;
       font-size: 13px;
+      width: 120px; // 20% 증가
     }
   }
 
@@ -358,6 +422,7 @@ const closeCampaignObModal = () => {
       border: 1px solid #ddd;
       border-radius: 4px;
       font-size: 13px;
+      width: 120px; // 50% 축소
     }
   }
 
@@ -378,6 +443,26 @@ const closeCampaignObModal = () => {
     border: 1px solid #ddd;
     border-radius: 4px;
     cursor: pointer;
+  }
+
+  .btn-excel {
+    padding: 6px 12px;
+    background: #16a34a;
+    border: 1px solid #15803d;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-excel::before {
+    content: "⬇";
+    font-size: 12px;
+    line-height: 1;
   }
 }
 
@@ -430,6 +515,10 @@ const closeCampaignObModal = () => {
       }
     }
   }
+}
+
+.history-row {
+  cursor: pointer;
 }
 
 .table-summary {
@@ -541,6 +630,10 @@ const closeCampaignObModal = () => {
   align-items: flex-end;
 }
 
+.form-spacer {
+  flex: 1;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -565,6 +658,17 @@ const closeCampaignObModal = () => {
   textarea {
     min-height: 120px;
     resize: vertical;
+  }
+
+  &.narrow {
+    flex: 0 0 auto;
+    max-width: 180px;
+
+    input,
+    select {
+      min-width: 120px;
+      max-width: 180px;
+    }
   }
 
   &.full-width {
@@ -746,5 +850,35 @@ const closeCampaignObModal = () => {
       }
     }
   }
+
+  .campaign-history-modal {
+    width: 56%; // 80%의 70% = 56% (30% 축소)
+    max-width: 630px; // 900px의 70% = 630px
+    height: auto; // 내용에 맞게 높이 조절
+    max-height: 90vh; // 최대 높이 제한
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    box-sizing: border-box;
+  }
+}
+
+.modal-floating-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 28px;
+  color: #111827;
 }
 </style>

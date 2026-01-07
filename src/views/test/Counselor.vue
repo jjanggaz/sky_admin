@@ -340,12 +340,6 @@
 
       <!-- 우측 상세 패널 (Pipe.vue 스타일) -->
       <div v-if="activeTab === 'campaign' && isDetailOpen" class="detail-panel">
-        <div class="detail-panel-header">
-          <div class="detail-panel-head">
-            <h3>캠페인 상담</h3>
-          </div>
-          <button class="btn-close" @click="isDetailOpen = false" aria-label="Close"></button>
-        </div>
         <div class="detail-panel-body">
           <CounselorDetail />
         </div>
@@ -921,7 +915,7 @@ watch(activeTab, (newTab) => {
   transition: grid-template-columns 0.3s ease;
 
   &.detail-open {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1.2fr 0.8fr; // 캠페인 탭 내용이 더 넓게 표시
   }
 }
 
