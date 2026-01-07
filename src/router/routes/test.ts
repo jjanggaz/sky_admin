@@ -6,6 +6,7 @@ const ObtmStatus = () => import("@/views/test/ObtmStatus.vue");
 const Obtm = () => import("@/views/test/Obtm.vue");
 const ObtmAssign = () => import("@/views/test/ObtmAssign.vue");
 const ObtmAssignCenter = () => import("@/views/test/ObtmAssignCenter.vue");
+const Counselor = () => import("@/views/test/Counselor.vue");
 
 export const testRoute = {
   path: "/test",
@@ -81,5 +82,16 @@ export const obtmAssignCenterRoute = {
     requiresAuth: false,
     titleKey: "pageTitles.obtmAssignCenter",
     icon: "obtmAssignCenter",
+  },
+};
+
+export const counselorRoute = {
+  path: "/counselor",
+  name: "Counselor",
+  component: Counselor,
+  meta: {
+    requiresAuth: false,
+    titleKey: "pageTitles.counselor",
+    icon: "counselor",
   },
 };

@@ -49,6 +49,13 @@
         <router-link to="/obtm-assign-center" class="nav-item campaign-item">
           <span class="nav-text">OBTM DB 현황 및 배정 (고객센터 관리자)</span>
         </router-link>
+        <br />
+        <br />
+
+        <!-- 캠페인 상담화면 버튼 -->
+        <router-link to="/counselor" class="nav-item campaign-item">
+          <span class="nav-text">캠페인 상담화면</span>
+        </router-link>
 
         <!-- 권한에 따른 메뉴 동적 표시 -->
         <template v-for="menuItem in availableMenus" :key="menuItem.path">

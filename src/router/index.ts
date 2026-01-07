@@ -29,7 +29,7 @@ import { machineRoute } from "./routes/machine";
 import { userRoute } from "./routes/user";
 import { vendorsRoute } from "./routes/vendors";
 import { codeRoute } from "./routes/code";
-import { testRoute, campaignRoute, campaignPriorityRoute, obtmStatusRoute, obtmRoute, obtmAssignRoute, obtmAssignCenterRoute } from "./routes/test";
+import { testRoute, campaignRoute, campaignPriorityRoute, obtmStatusRoute, obtmRoute, obtmAssignRoute, obtmAssignCenterRoute, counselorRoute } from "./routes/test";
 import { costRoute } from "./routes/cost";
 
 import { useAuthStore } from "../stores/authStore";
@@ -76,6 +76,7 @@ const baseRoutes: RouteRecordRaw[] = [
   obtmRoute,
   obtmAssignRoute,
   obtmAssignCenterRoute,
+  counselorRoute,
 ];
 
 // 코드별 라우트 매핑

@@ -40,7 +40,7 @@
 
       <!-- 오른쪽 패널 -->
       <div class="right-panel">
-        <div class="section-title">> SMS 그룹추가</div>
+        <div class="title-header">SMS 그룹추가</div>
 
         <div class="form-section">
           <div class="form-item">
@@ -224,11 +224,11 @@ defineExpose({
 }
 
 .title-header {
-  background-color: #ffd700;
+  background-color: #4169e1;
   padding: $spacing-md;
-  font-size: $font-size-lg;
-  font-weight: bold;
-  color: $text-color;
+  font-size: $font-size-sm;
+  font-weight: 600;
+  color: #ffffff;
   border-bottom: 1px solid $border-color;
 }
 
@@ -288,7 +288,7 @@ defineExpose({
 .list-header {
   background-color: #4169e1;
   color: #ffffff;
-  padding: $spacing-sm $spacing-md;
+  padding: $spacing-md;
   font-size: $font-size-sm;
   font-weight: 600;
 }
