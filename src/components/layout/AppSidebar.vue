@@ -21,6 +21,34 @@
         <router-link to="/campaign-priority" class="nav-item campaign-item">
           <span class="nav-text">캠페인 조회.수정</span>
         </router-link>
+        <br />
+        <br />
+
+        <!-- 센터별 OBTM 현황 버튼 -->
+        <router-link to="/obtm-status" class="nav-item campaign-item">
+          <span class="nav-text">센터별 OBTM 현황</span>
+        </router-link>
+        <br />
+        <br />
+
+        <!-- OBTM DB 등록 버튼 -->
+        <router-link to="/obtm" class="nav-item campaign-item">
+          <span class="nav-text">OBTM DB 등록</span>
+        </router-link>
+        <br />
+        <br />
+
+        <!-- OBTM DB 현황 및 배정 (본사 관리자) 버튼 -->
+        <router-link to="/obtm-assign" class="nav-item campaign-item">
+          <span class="nav-text">OBTM DB 현황 및 배정 (본사 관리자)</span>
+        </router-link>
+        <br />
+        <br />
+
+        <!-- OBTM DB 현황 및 배정 (고객센터 관리자) 버튼 -->
+        <router-link to="/obtm-assign-center" class="nav-item campaign-item">
+          <span class="nav-text">OBTM DB 현황 및 배정 (고객센터 관리자)</span>
+        </router-link>
 
         <!-- 권한에 따른 메뉴 동적 표시 -->
         <template v-for="menuItem in availableMenus" :key="menuItem.path">

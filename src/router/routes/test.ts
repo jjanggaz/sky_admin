@@ -2,6 +2,10 @@
 const Test = () => import("@/views/test/Test.vue");
 const Campaign = () => import("@/views/test/Campaign.vue");
 const CampaignPriority = () => import("@/views/test/CampaignPriority.vue");
+const ObtmStatus = () => import("@/views/test/ObtmStatus.vue");
+const Obtm = () => import("@/views/test/Obtm.vue");
+const ObtmAssign = () => import("@/views/test/ObtmAssign.vue");
+const ObtmAssignCenter = () => import("@/views/test/ObtmAssignCenter.vue");
 
 export const testRoute = {
   path: "/test",
@@ -33,5 +37,49 @@ export const campaignPriorityRoute = {
     requiresAuth: false,
     titleKey: "pageTitles.campaignPriority",
     icon: "campaignPriority",
+  },
+};
+
+export const obtmStatusRoute = {
+  path: "/obtm-status",
+  name: "ObtmStatus",
+  component: ObtmStatus,
+  meta: {
+    requiresAuth: false,
+    titleKey: "pageTitles.obtmStatus",
+    icon: "obtmStatus",
+  },
+};
+
+export const obtmRoute = {
+  path: "/obtm",
+  name: "Obtm",
+  component: Obtm,
+  meta: {
+    requiresAuth: false,
+    titleKey: "pageTitles.obtm",
+    icon: "obtm",
+  },
+};
+
+export const obtmAssignRoute = {
+  path: "/obtm-assign",
+  name: "ObtmAssign",
+  component: ObtmAssign,
+  meta: {
+    requiresAuth: false,
+    titleKey: "pageTitles.obtmAssign",
+    icon: "obtmAssign",
+  },
+};
+
+export const obtmAssignCenterRoute = {
+  path: "/obtm-assign-center",
+  name: "ObtmAssignCenter",
+  component: ObtmAssignCenter,
+  meta: {
+    requiresAuth: false,
+    titleKey: "pageTitles.obtmAssignCenter",
+    icon: "obtmAssignCenter",
   },
 };

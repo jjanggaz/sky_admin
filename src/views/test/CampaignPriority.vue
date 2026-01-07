@@ -57,7 +57,7 @@
       <div class="table-wrapper">
         <DataTable
           :columns="tableColumns"
-          :data="campaignList"
+          :data="paginatedCampaignList"
           :loading="loading"
           :selectable="false"
           :draggable="true"
@@ -82,8 +82,21 @@
         </DataTable>
       </div>
 
-      <div class="total-count">
-        전체 항목: {{ totalCount }}
+      <div class="pagination-container">
+        <div class="total-count">
+          {{
+            t("common.totalCount", {
+              count: totalCount || 0,
+            })
+          }}
+        </div>
+        <div class="pagination-center">
+          <Pagination
+            :current-page="currentPage"
+            :total-pages="totalPages"
+            @page-change="handlePageChange"
+          />
+        </div>
       </div>
     </div>
 
@@ -97,7 +110,7 @@
       <div class="table-wrapper">
         <DataTable
           :columns="tableColumns"
-          :data="ongoingCampaignList"
+          :data="paginatedOngoingCampaignList"
           :loading="loading"
           :selectable="false"
           :draggable="true"
@@ -122,8 +135,21 @@
         </DataTable>
       </div>
 
-      <div class="total-count">
-        전체 항목: {{ ongoingTotalCount }}
+      <div class="pagination-container">
+        <div class="total-count">
+          {{
+            t("common.totalCount", {
+              count: ongoingTotalCount || 0,
+            })
+          }}
+        </div>
+        <div class="pagination-center">
+          <Pagination
+            :current-page="ongoingCurrentPage"
+            :total-pages="ongoingTotalPages"
+            @page-change="handleOngoingPageChange"
+          />
+        </div>
       </div>
     </div>
 
@@ -137,7 +163,7 @@
       <div class="table-wrapper">
         <DataTable
           :columns="tableColumns"
-          :data="scheduledCampaignList"
+          :data="paginatedScheduledCampaignList"
           :loading="loading"
           :selectable="false"
           :draggable="true"
@@ -162,8 +188,21 @@
         </DataTable>
       </div>
 
-      <div class="total-count">
-        전체 항목: {{ scheduledTotalCount }}
+      <div class="pagination-container">
+        <div class="total-count">
+          {{
+            t("common.totalCount", {
+              count: scheduledTotalCount || 0,
+            })
+          }}
+        </div>
+        <div class="pagination-center">
+          <Pagination
+            :current-page="scheduledCurrentPage"
+            :total-pages="scheduledTotalPages"
+            @page-change="handleScheduledPageChange"
+          />
+        </div>
       </div>
     </div>
 
@@ -187,10 +226,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import DataTable, { type TableColumn } from "@/components/common/DataTable.vue";
 import CampaignDetail from "./CampaignDetail.vue";
+import Pagination from "@/components/common/Pagination.vue";
 import searchIcon from "@/assets/images/common/ico_search.svg";
+
+const { t } = useI18n();
 
 const loading = ref(false);
 const filterValue = ref("campaign_id");
@@ -204,6 +247,43 @@ const ongoingTotalCount = ref(0);
 const scheduledCampaignList = ref<Record<string, unknown>[]>([]);
 const scheduledTotalCount = ref(0);
 const isRegisterModalOpen = ref(false);
+
+// 페이징 관련 state
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const ongoingCurrentPage = ref(1);
+const scheduledCurrentPage = ref(1);
+
+// 페이징 계산
+const totalPages = computed(() => {
+  return Math.ceil(totalCount.value / itemsPerPage.value);
+});
+
+const paginatedCampaignList = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return campaignList.value.slice(start, end);
+});
+
+const ongoingTotalPages = computed(() => {
+  return Math.ceil(ongoingTotalCount.value / itemsPerPage.value);
+});
+
+const paginatedOngoingCampaignList = computed(() => {
+  const start = (ongoingCurrentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return ongoingCampaignList.value.slice(start, end);
+});
+
+const scheduledTotalPages = computed(() => {
+  return Math.ceil(scheduledTotalCount.value / itemsPerPage.value);
+});
+
+const paginatedScheduledCampaignList = computed(() => {
+  const start = (scheduledCurrentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return scheduledCampaignList.value.slice(start, end);
+});
 const campaignDetailRef = ref<InstanceType<typeof CampaignDetail> | null>(null);
 const selectedItems = ref<Record<string, unknown>[]>([]);
 const selectedCampaignItem = ref<Record<string, unknown> | null>(null);
@@ -214,51 +294,51 @@ const tableColumns: TableColumn[] = [
     key: "priority",
     title: "우선순위",
     width: "100px",
-    sortable: true,
+    sortable: false,
   },
   {
     key: "campaign_id",
     title: "캠페인 ID",
     width: "120px",
-    sortable: true,
+    sortable: false,
   },
   {
     key: "campaign_name",
     title: "캠페인명",
     width: "200px",
-    sortable: true,
+    sortable: false,
   },
   {
     key: "start_date",
     title: "시작일",
     width: "120px",
-    sortable: true,
+    sortable: false,
     dateFormat: "YYYY-MM-DD",
   },
   {
     key: "end_date",
     title: "종료일",
     width: "120px",
-    sortable: true,
+    sortable: false,
     dateFormat: "YYYY-MM-DD",
   },
   {
     key: "manager_affiliation",
     title: "담당자 소속",
     width: "150px",
-    sortable: true,
+    sortable: false,
   },
   {
     key: "manager_name",
     title: "담당자명",
     width: "120px",
-    sortable: true,
+    sortable: false,
   },
   {
     key: "sms_send_date",
     title: "문자발송일",
     width: "120px",
-    sortable: true,
+    sortable: false,
     dateFormat: "YYYY-MM-DD",
   },
   {
@@ -386,6 +466,9 @@ const generateScheduledDummyData = () => {
 // 검색 처리
 const handleSearch = () => {
   loading.value = true;
+  currentPage.value = 1; // 검색 시 첫 페이지로
+  ongoingCurrentPage.value = 1; // 검색 시 첫 페이지로
+  scheduledCurrentPage.value = 1; // 검색 시 첫 페이지로
   // TODO: API 호출 로직 구현
   setTimeout(() => {
     campaignList.value = generateDummyData();
@@ -396,6 +479,21 @@ const handleSearch = () => {
     scheduledTotalCount.value = scheduledCampaignList.value.length;
     loading.value = false;
   }, 500);
+};
+
+// 페이지 변경 처리
+const handlePageChange = (page: number) => {
+  currentPage.value = page;
+};
+
+// 진행중 캠페인 페이지 변경 처리
+const handleOngoingPageChange = (page: number) => {
+  ongoingCurrentPage.value = page;
+};
+
+// 예정된 캠페인 페이지 변경 처리
+const handleScheduledPageChange = (page: number) => {
+  scheduledCurrentPage.value = page;
 };
 
 // 모달 열기
@@ -446,10 +544,15 @@ const handlePriorityDrop = (event: DragEvent, targetItem: Record<string, unknown
   const draggedIndex = parseInt(event.dataTransfer?.getData("text/plain") || "-1");
   if (draggedIndex === -1 || draggedIndex === targetIndex) return;
 
+  // 페이징된 리스트의 인덱스를 전체 리스트 인덱스로 변환
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const actualDraggedIndex = start + draggedIndex;
+  const actualTargetIndex = start + targetIndex;
+
   // 배열에서 항목 이동
   const newList = [...campaignList.value];
-  const [draggedItem] = newList.splice(draggedIndex, 1);
-  newList.splice(targetIndex, 0, draggedItem);
+  const [draggedItem] = newList.splice(actualDraggedIndex, 1);
+  newList.splice(actualTargetIndex, 0, draggedItem);
 
   // 우선순위 재설정
   newList.forEach((item, index) => {
@@ -471,10 +574,15 @@ const handleRowDrop = (
   targetItem: Record<string, unknown>,
   targetIndex: number
 ) => {
+  // 페이징된 리스트의 인덱스를 전체 리스트 인덱스로 변환
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const actualDraggedIndex = start + draggedIndex;
+  const actualTargetIndex = start + targetIndex;
+
   // 배열에서 항목 이동
   const newList = [...campaignList.value];
-  const [movedItem] = newList.splice(draggedIndex, 1);
-  newList.splice(targetIndex, 0, movedItem);
+  const [movedItem] = newList.splice(actualDraggedIndex, 1);
+  newList.splice(actualTargetIndex, 0, movedItem);
 
   // 우선순위 재설정
   newList.forEach((item, index) => {
@@ -510,10 +618,15 @@ const handleOngoingPriorityDrop = (event: DragEvent, targetItem: Record<string, 
   const draggedIndex = parseInt(event.dataTransfer?.getData("text/plain") || "-1");
   if (draggedIndex === -1 || draggedIndex === targetIndex) return;
 
+  // 페이징된 리스트의 인덱스를 전체 리스트 인덱스로 변환
+  const start = (ongoingCurrentPage.value - 1) * itemsPerPage.value;
+  const actualDraggedIndex = start + draggedIndex;
+  const actualTargetIndex = start + targetIndex;
+
   // 배열에서 항목 이동
   const newList = [...ongoingCampaignList.value];
-  const [draggedItem] = newList.splice(draggedIndex, 1);
-  newList.splice(targetIndex, 0, draggedItem);
+  const [draggedItem] = newList.splice(actualDraggedIndex, 1);
+  newList.splice(actualTargetIndex, 0, draggedItem);
 
   // 우선순위 재설정
   newList.forEach((item, index) => {
@@ -536,10 +649,15 @@ const handleOngoingRowDrop = (
   targetItem: Record<string, unknown>,
   targetIndex: number
 ) => {
+  // 페이징된 리스트의 인덱스를 전체 리스트 인덱스로 변환
+  const start = (ongoingCurrentPage.value - 1) * itemsPerPage.value;
+  const actualDraggedIndex = start + draggedIndex;
+  const actualTargetIndex = start + targetIndex;
+
   // 배열에서 항목 이동
   const newList = [...ongoingCampaignList.value];
-  const [movedItem] = newList.splice(draggedIndex, 1);
-  newList.splice(targetIndex, 0, movedItem);
+  const [movedItem] = newList.splice(actualDraggedIndex, 1);
+  newList.splice(actualTargetIndex, 0, movedItem);
 
   // 우선순위 재설정
   newList.forEach((item, index) => {
@@ -608,10 +726,15 @@ const handleScheduledRowDrop = (
   targetItem: Record<string, unknown>,
   targetIndex: number
 ) => {
+  // 페이징된 리스트의 인덱스를 전체 리스트 인덱스로 변환
+  const start = (scheduledCurrentPage.value - 1) * itemsPerPage.value;
+  const actualDraggedIndex = start + draggedIndex;
+  const actualTargetIndex = start + targetIndex;
+
   // 배열에서 항목 이동
   const newList = [...scheduledCampaignList.value];
-  const [movedItem] = newList.splice(draggedIndex, 1);
-  newList.splice(targetIndex, 0, movedItem);
+  const [movedItem] = newList.splice(actualDraggedIndex, 1);
+  newList.splice(actualTargetIndex, 0, movedItem);
 
   // 우선순위 재설정
   newList.forEach((item, index) => {
@@ -905,15 +1028,28 @@ onMounted(() => {
     max-height: 500px;
   }
 
-  .total-count {
+  .pagination-container {
     flex-shrink: 0;
-    padding: $spacing-sm $spacing-md;
-    font-size: $font-size-sm;
-    color: $text-light;
-    border-top: 1px solid $border-color;
+    margin-top: $spacing-md;
     display: flex;
     align-items: center;
-    gap: $spacing-xs;
+    justify-content: center;
+    position: relative;
+    padding: $spacing-sm $spacing-md;
+    border-top: 1px solid $border-color;
+  }
+
+  .total-count {
+    position: absolute;
+    left: $spacing-md;
+    font-size: $font-size-sm;
+    color: $text-light;
+  }
+
+  .pagination-center {
+    display: flex;
+    justify-content: center;
+    flex: 1;
   }
 }
 
