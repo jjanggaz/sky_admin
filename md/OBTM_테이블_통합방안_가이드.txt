@@ -1,0 +1,242 @@
+OBTM 마스터 테이블과 선분이력 테이블 통합 방법 가이드
+=====================================================
+
+개요
+----
+OBTM 마스터 테이블(obtm_campaigns)과 선분이력 테이블(obtm_history)을 
+하나의 테이블로 통합하는 방법에 대한 가이드입니다.
+
+
+1. 통합 방법: 단일 테이블 접근법
+=================================
+
+1.1 방법 1: 완전 통합 테이블 (추천)
+----------------------------------
+CREATE TABLE obtm_campaigns (
+    history_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    obtm_id VARCHAR(50) NOT NULL,              -- OBTM 고유 ID (논리적 식별자)
+    campaign_id VARCHAR(50) NOT NULL,          -- 캠페인 ID
+    campaign_name VARCHAR(200) NOT NULL,       -- 캠페인명
+    description TEXT,                          -- 설명
+    
+    -- 선분이력 관리 필드
+    start_date DATE NOT NULL,                  -- 시작일자
+    end_date DATE,                             -- 종료일자 (NULL = 현재 유효)
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE', -- 상태
+    
+    -- 메타데이터
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(50),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_by VARCHAR(50),
+    
+    -- 제약조건
+    CONSTRAINT chk_dates CHECK (end_date IS NULL OR start_date <= end_date),
+    
+    -- 인덱스
+    INDEX idx_obtm_id (obtm_id),
+    INDEX idx_campaign_id (campaign_id),
+    INDEX idx_date_range (start_date, end_date, status),
+    INDEX idx_obtm_date_range (obtm_id, start_date, end_date),
+    
+    -- 같은 OBTM의 같은 기간 중복 방지 (선택적)
+    UNIQUE KEY uk_obtm_period (obtm_id, start_date, end_date)
+);
+
+
+1.2 방법 2: 현재 유효 레코드 구분 접근법
+--------------------------------------
+CREATE TABLE obtm_campaigns (
+    history_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    obtm_id VARCHAR(50) NOT NULL,
+    campaign_id VARCHAR(50) NOT NULL,
+    campaign_name VARCHAR(200) NOT NULL,
+    description TEXT,
+    
+    -- 선분이력 관리 필드
+    start_date DATE NOT NULL,
+    end_date DATE,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    is_current BOOLEAN DEFAULT FALSE,          -- 현재 유효 여부 (성능 최적화용)
+    
+    -- 메타데이터
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(50),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_by VARCHAR(50),
+    
+    -- 제약조건
+    CONSTRAINT chk_dates CHECK (end_date IS NULL OR start_date <= end_date),
+    CONSTRAINT chk_current_record CHECK (is_current = TRUE AND end_date IS NULL OR is_current = FALSE),
+    
+    -- 인덱스
+    INDEX idx_obtm_id (obtm_id),
+    INDEX idx_campaign_id (campaign_id),
+    INDEX idx_current (is_current, status),              -- 현재 레코드 조회 최적화
+    INDEX idx_date_range (start_date, end_date, status),
+    INDEX idx_obtm_date_range (obtm_id, start_date, end_date),
+    
+    -- 현재 유효한 레코드는 OBTM당 1개만 존재해야 함
+    UNIQUE KEY uk_obtm_current (obtm_id, is_current) WHERE is_current = TRUE
+);
+
+
+2. 통합 설계의 장단점 비교
+==========================
+
+2.1 장점
+--------
+1. 단순한 구조
+   - JOIN이 필요 없어 쿼리 성능 향상
+   - 현재 레코드 조회가 빠름
+   - 코드 복잡도 감소
+
+2. 데이터 일관성
+   - 마스터 정보와 이력 정보가 하나의 레코드에 있어 일관성 유지 용이
+   - 트랜잭션 관리가 단순함
+
+3. 유연성
+   - 캠페인명 등 마스터 정보도 시점별로 변경 가능
+   - 마스터 정보 변경도 이력으로 관리 가능
+
+
+2.2 단점
+--------
+1. 데이터 중복
+   - obtm_id, campaign_id, campaign_name이 각 선분별로 중복 저장
+   - 저장 공간이 증가 (일반적으로 큰 문제는 아님)
+
+2. 업데이트 복잡도
+   - 마스터 정보 변경 시에도 선분 생성/종료 로직 필요
+   - 마스터 정보만 변경하는 경우도 선분 이력으로 기록됨
+
+
+3. 통합 테이블 기반 쿼리 예시
+=============================
+
+3.1 특정 시점 유효한 OBTM 조회
+-------------------------------
+-- 특정 날짜에 유효한 OBTM 조회
+SELECT 
+    obtm_id,
+    campaign_id,
+    campaign_name,
+    description,
+    start_date,
+    end_date,
+    status
+FROM obtm_campaigns
+WHERE start_date <= ?target_date
+  AND (end_date IS NULL OR end_date >= ?target_date)
+  AND status = 'ACTIVE';
+
+
+3.2 현재 유효한 OBTM 조회 (is_current 사용 시)
+---------------------------------------------
+-- 현재 유효한 OBTM 조회 (빠른 조회)
+SELECT 
+    obtm_id,
+    campaign_id,
+    campaign_name,
+    description,
+    start_date
+FROM obtm_campaigns
+WHERE is_current = TRUE
+  AND status = 'ACTIVE';
+
+
+3.3 기간 조회 (우선순위 조회용)
+-------------------------------
+-- 조회 기간과 겹치는 OBTM 조회
+SELECT DISTINCT
+    obtm_id,
+    campaign_id,
+    campaign_name,
+    start_date AS obtm_start_date,
+    end_date AS obtm_end_date,
+    COALESCE(p.priority_order, 999999) AS priority_order
+FROM obtm_campaigns c
+LEFT JOIN obtm_priorities p 
+    ON c.obtm_id = p.obtm_id
+    AND p.query_start_date = ?query_start_date
+    AND p.query_end_date = ?query_end_date
+WHERE c.status = 'ACTIVE'
+  AND c.start_date <= ?query_end_date
+  AND (c.end_date IS NULL OR c.end_date >= ?query_start_date)
+ORDER BY COALESCE(p.priority_order, 999999) ASC;
+
+
+3.4 선분이력 생성/수정
+---------------------
+-- 트랜잭션 내에서 실행
+BEGIN TRANSACTION;
+
+-- 1. 기존 선분 종료
+UPDATE obtm_campaigns 
+SET end_date = DATE_SUB(?new_start_date, INTERVAL 1 DAY),
+    is_current = FALSE,  -- is_current 사용 시
+    updated_at = CURRENT_TIMESTAMP,
+    updated_by = ?user_id
+WHERE obtm_id = ?obtm_id
+  AND (end_date IS NULL OR end_date >= ?new_start_date);
+
+-- 2. 새 선분 생성
+INSERT INTO obtm_campaigns 
+    (obtm_id, campaign_id, campaign_name, description, 
+     start_date, end_date, status, is_current, created_by)
+VALUES 
+    (?obtm_id, ?campaign_id, ?campaign_name, ?description,
+     ?new_start_date, ?new_end_date, 'ACTIVE', TRUE, ?user_id);
+
+COMMIT;
+
+
+4. TypeScript 인터페이스 (통합 테이블용)
+========================================
+
+// 통합된 OBTM 인터페이스
+interface ObtmCampaign {
+  history_id?: number;
+  obtm_id: string;
+  campaign_id: string;
+  campaign_name: string;
+  description?: string;
+  start_date: string;        // YYYY-MM-DD
+  end_date: string | null;   // YYYY-MM-DD or null
+  status: 'ACTIVE' | 'INACTIVE' | 'CANCELLED';
+  is_current?: boolean;      // 선택적 (성능 최적화용)
+  created_at?: string;
+  created_by?: string;
+  updated_at?: string;
+  updated_by?: string;
+}
+
+// 우선순위와 함께 조회
+interface ObtmWithPriority extends ObtmCampaign {
+  priority_order: number | null;
+  priority_effective_date: string | null;
+}
+
+
+5. 권장사항
+===========
+
+5.1 통합 테이블을 선택해야 하는 경우
+-----------------------------------
+- 캠페인명, 설명 등 마스터 정보도 시점별로 변경이 필요한 경우
+- 조회 성능이 중요한 경우 (특히 현재 레코드 조회)
+- 코드 복잡도를 낮추고 싶은 경우
+- 트랜잭션 관리가 중요한 경우
+
+5.2 분리 테이블을 선택해야 하는 경우
+-----------------------------------
+- 마스터 정보가 거의 변경되지 않고, 이력 정보만 자주 변경되는 경우
+- 마스터 정보의 저장 공간 최적화가 중요한 경우
+- 마스터 정보와 이력 정보의 조회 패턴이 완전히 다른 경우
+
+5.3 일반적인 권장사항
+---------------------
+- 대부분의 경우 통합 테이블이 더 나은 선택입니다
+- 코드의 단순성과 조회 성능 향상의 이점이 데이터 중복보다 큽니다
+- is_current 플래그를 추가하면 현재 레코드 조회 성능을 더욱 향상시킬 수 있습니다
+

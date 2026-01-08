@@ -1,0 +1,269 @@
+OBTM 진행중 캠페인 우선순위 기준 데이터 설계 가이드
+=====================================================
+
+요구사항
+--------
+- OBTM은 시작, 종료 일자가 각각 지정되어 선분이력 관리
+- 우선순위부여 화면에서 대상 조회 시 임의의 기간이 선택됨
+- 조회된 대상 우선순위 조정기능 필요, 우선순위는 임의로 조회된 대상 전체에 대해 부여 가능해야 함
+
+
+1. 핵심 테이블 구조
+===================
+
+1.1 OBTM 마스터 테이블 (obtm_campaigns)
+---------------------------------------
+CREATE TABLE obtm_campaigns (
+    obtm_id VARCHAR(50) PRIMARY KEY,           -- OBTM 고유 ID
+    campaign_id VARCHAR(50) NOT NULL,          -- 캠페인 ID
+    campaign_name VARCHAR(200) NOT NULL,       -- 캠페인명
+    description TEXT,                          -- 설명
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(50),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_by VARCHAR(50),
+    INDEX idx_campaign_id (campaign_id)
+);
+
+
+1.2 OBTM 선분이력 테이블 (obtm_history)
+----------------------------------------
+CREATE TABLE obtm_history (
+    history_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    obtm_id VARCHAR(50) NOT NULL,              -- OBTM ID (FK)
+    start_date DATE NOT NULL,                  -- 시작일자
+    end_date DATE,                             -- 종료일자 (NULL = 현재 유효)
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE', -- 상태 (ACTIVE, INACTIVE, CANCELLED)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(50),
+    
+    -- 선분이력 무결성 검증용 제약조건
+    CONSTRAINT chk_dates CHECK (end_date IS NULL OR start_date <= end_date),
+    CONSTRAINT chk_no_overlap UNIQUE KEY uk_obtm_period (obtm_id, start_date, end_date),
+    
+    -- 성능 최적화 인덱스
+    INDEX idx_obtm_date_range (obtm_id, start_date, end_date),
+    INDEX idx_date_range_query (start_date, end_date, status),
+    INDEX idx_active_records (status, start_date, end_date),
+    
+    FOREIGN KEY (obtm_id) REFERENCES obtm_campaigns(obtm_id) ON DELETE CASCADE
+);
+
+
+1.3 우선순위 관리 테이블 (obtm_priorities)
+-------------------------------------------
+CREATE TABLE obtm_priorities (
+    priority_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    obtm_id VARCHAR(50) NOT NULL,              -- OBTM ID (FK)
+    priority_order INT NOT NULL,               -- 우선순위 순서 (1, 2, 3...)
+    effective_date DATE NOT NULL,              -- 우선순위 부여일자
+    query_start_date DATE NOT NULL,            -- 조회 시작일자 (사용자가 선택한 기간)
+    query_end_date DATE NOT NULL,              -- 조회 종료일자 (사용자가 선택한 기간)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(50),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_by VARCHAR(50),
+    
+    -- 같은 조회 기간 내 동일 OBTM의 중복 방지
+    UNIQUE KEY uk_obtm_query_priority (obtm_id, query_start_date, query_end_date),
+    
+    -- 조회 최적화 인덱스
+    INDEX idx_query_period (query_start_date, query_end_date),
+    INDEX idx_priority_order (effective_date, priority_order),
+    INDEX idx_obtm_priority (obtm_id, effective_date),
+    
+    FOREIGN KEY (obtm_id) REFERENCES obtm_campaigns(obtm_id) ON DELETE CASCADE
+);
+
+
+2. 선분이력 관리 로직
+=====================
+
+2.1 특정 시점 유효한 OBTM 조회
+------------------------------
+-- 특정 날짜에 유효한 OBTM 조회
+SELECT h.*, c.campaign_id, c.campaign_name
+FROM obtm_history h
+JOIN obtm_campaigns c ON h.obtm_id = c.obtm_id
+WHERE h.start_date <= ?target_date
+  AND (h.end_date IS NULL OR h.end_date >= ?target_date)
+  AND h.status = 'ACTIVE';
+
+
+2.2 기간 조회 (기간과 겹치는 모든 OBTM)
+---------------------------------------
+-- 조회 기간과 겹치는 OBTM 조회
+SELECT DISTINCT h.*, c.campaign_id, c.campaign_name
+FROM obtm_history h
+JOIN obtm_campaigns c ON h.obtm_id = c.obtm_id
+WHERE h.status = 'ACTIVE'
+  AND h.start_date <= ?query_end_date
+  AND (h.end_date IS NULL OR h.end_date >= ?query_start_date);
+
+
+2.3 선분이력 생성/수정 로직
+---------------------------
+-- 새로운 선분이력 생성 (기존 선분 종료 처리 포함)
+-- 트랜잭션 내에서 실행
+BEGIN TRANSACTION;
+
+-- 1. 기존 선분 종료
+UPDATE obtm_history 
+SET end_date = DATE_SUB(?new_start_date, INTERVAL 1 DAY),
+    updated_at = CURRENT_TIMESTAMP,
+    updated_by = ?user_id
+WHERE obtm_id = ?obtm_id
+  AND (end_date IS NULL OR end_date >= ?new_start_date);
+
+-- 2. 새 선분 생성
+INSERT INTO obtm_history (obtm_id, start_date, end_date, status, created_by)
+VALUES (?obtm_id, ?new_start_date, ?new_end_date, 'ACTIVE', ?user_id);
+
+COMMIT;
+
+
+3. 우선순위 조회 및 부여
+========================
+
+3.1 조회 기간에 따른 OBTM 및 우선순위 조회
+-----------------------------------------
+-- 조회 기간에 유효한 OBTM과 우선순위 함께 조회
+SELECT 
+    h.obtm_id,
+    c.campaign_id,
+    c.campaign_name,
+    h.start_date AS obtm_start_date,
+    h.end_date AS obtm_end_date,
+    COALESCE(p.priority_order, 999999) AS priority_order,  -- 우선순위 없는 경우 큰 값
+    p.effective_date AS priority_date
+FROM obtm_history h
+JOIN obtm_campaigns c ON h.obtm_id = c.obtm_id
+LEFT JOIN obtm_priorities p 
+    ON h.obtm_id = p.obtm_id
+    AND p.query_start_date = ?query_start_date
+    AND p.query_end_date = ?query_end_date
+WHERE h.status = 'ACTIVE'
+  AND h.start_date <= ?query_end_date
+  AND (h.end_date IS NULL OR h.end_date >= ?query_start_date)
+ORDER BY 
+    COALESCE(p.priority_order, 999999) ASC,
+    h.start_date ASC,
+    c.campaign_name ASC;
+
+
+3.2 우선순위 일괄 부여
+---------------------
+-- 트랜잭션 내에서 실행
+BEGIN TRANSACTION;
+
+-- 1. 기존 우선순위 삭제 (해당 조회 기간의)
+DELETE FROM obtm_priorities
+WHERE query_start_date = ?query_start_date
+  AND query_end_date = ?query_end_date;
+
+-- 2. 새 우선순위 일괄 삽입
+INSERT INTO obtm_priorities 
+    (obtm_id, priority_order, effective_date, query_start_date, query_end_date, created_by)
+VALUES
+    (?obtm_id_1, 1, CURRENT_DATE, ?query_start_date, ?query_end_date, ?user_id),
+    (?obtm_id_2, 2, CURRENT_DATE, ?query_start_date, ?query_end_date, ?user_id),
+    -- ... 나머지 OBTM들
+    (?obtm_id_n, n, CURRENT_DATE, ?query_start_date, ?query_end_date, ?user_id);
+
+COMMIT;
+
+
+4. TypeScript 인터페이스 정의
+=============================
+
+// OBTM 기본 정보
+interface ObtmCampaign {
+  obtm_id: string;
+  campaign_id: string;
+  campaign_name: string;
+  description?: string;
+  created_at: string;
+  created_by: string;
+  updated_at: string;
+  updated_by: string;
+}
+
+// OBTM 선분이력
+interface ObtmHistory {
+  history_id: number;
+  obtm_id: string;
+  start_date: string;        // YYYY-MM-DD
+  end_date: string | null;   // YYYY-MM-DD or null (현재 유효)
+  status: 'ACTIVE' | 'INACTIVE' | 'CANCELLED';
+  created_at: string;
+  created_by: string;
+}
+
+// 우선순위 정보
+interface ObtmPriority {
+  priority_id?: number;
+  obtm_id: string;
+  priority_order: number;    // 1, 2, 3...
+  effective_date: string;    // 우선순위 부여일
+  query_start_date: string;  // 조회 시작일
+  query_end_date: string;    // 조회 종료일
+  created_at?: string;
+  created_by?: string;
+  updated_at?: string;
+  updated_by?: string;
+}
+
+// 조회 결과 (이력 + 우선순위 통합)
+interface ObtmWithPriority extends ObtmHistory {
+  campaign_id: string;
+  campaign_name: string;
+  priority_order: number | null;
+  priority_effective_date: string | null;
+}
+
+// 우선순위 조회 파라미터
+interface PriorityQueryParams {
+  query_start_date: string;  // 조회 시작일
+  query_end_date: string;    // 조회 종료일
+  include_inactive?: boolean;
+}
+
+// 우선순위 일괄 저장 요청
+interface PrioritySaveRequest {
+  query_start_date: string;
+  query_end_date: string;
+  priorities: Array<{
+    obtm_id: string;
+    priority_order: number;
+  }>;
+}
+
+
+5. 설계 포인트
+==============
+
+5.1 선분이력 관리
+----------------
+- 시작일/종료일로 유효 구간 관리
+- end_date = NULL은 현재 유효한 상태를 의미
+- 겹침 방지를 위한 UNIQUE 제약 조건 사용
+- 변경 시 기존 선분을 종료하고 새 선분 생성하는 방식
+
+5.2 우선순위 관리
+----------------
+- 조회 기간별로 우선순위를 별도로 관리
+- 같은 OBTM이라도 조회 기간이 다르면 우선순위가 다를 수 있음
+- 일괄 부여 시 기존 데이터 삭제 후 재삽입 방식
+
+5.3 성능 최적화
+--------------
+- 자주 조회하는 조건에 대한 인덱스 구성
+- 기간 조회 최적화를 위한 복합 인덱스
+- 우선순위 조회 시 LEFT JOIN 활용
+
+5.4 데이터 무결성
+----------------
+- 외래키로 참조 무결성 보장
+- 체크 제약조건으로 날짜 범위 검증
+- 트랜잭션을 통한 선분이력/우선순위 변경의 원자성 보장
+
