@@ -1,588 +1,516 @@
 <template>
-  <div class="campaign-page">
-    <!-- Top Section - Search/Filter Controls -->
-    <div class="search-section">
-      <div class="search-filters">
-        <select v-model="filterValue" class="filter-select">
-          <option value="campaign_name">캠페인 명</option>
-          <option value="campaign_id">캠페인 ID</option>
-          <option value="manager_name">사용자명</option>
-        </select>
+  <div class="obtm-detail-page">
+    <div class="page-layout">
+      <!-- 왼쪽 패널 -->
+      <div class="left-panel">
+        <div class="title-header">OBTM DB 등록</div>
+        
+        <div class="form-section">
+          <div class="form-item">
+            <label>캠페인ID</label>
+            <input
+              v-model="formData.campaignId"
+              type="text"
+              class="form-input"
+              placeholder="캠페인ID"
+            />
+          </div>
 
-        <div class="search-input-wrapper">
-          <input
-            v-model="searchValue"
-            type="text"
-            class="search-input"
-            placeholder="검색"
-          />
-          <button
-            v-if="searchValue"
-            class="clear-btn"
-            @click="searchValue = ''"
-          >
-            ×
-          </button>
-          <button class="search-btn" @click="handleSearch">
-            <img :src="searchIcon" alt="검색" />
-          </button>
+          <div class="form-item">
+            <label>캠페인명</label>
+            <input
+              v-model="formData.campaignName"
+              type="text"
+              class="form-input"
+              placeholder="캠페인명"
+            />
+          </div>
         </div>
 
-        <span class="period-label">기간으로 조회</span>
+        <div class="customer-list-section">
+          <div class="list-header">고객번호; 스페셜 DB 여부</div>
+          <textarea
+            v-model="customerListText"
+            class="customer-textarea"
+            placeholder="고객번호; 스페셜 DB 여부 형식으로 입력하세요&#10;예: 0001234568; 우선"
+            @input="updateCustomerList"
+          ></textarea>
+        </div>
+      </div>
 
-        <div class="date-range">
-          <input
-            v-model="startDate"
-            type="date"
-            class="date-input"
-          />
-          <span class="date-separator">~</span>
-          <input
-            v-model="endDate"
-            type="date"
-            class="date-input"
-          />
+      <!-- 오른쪽 패널 -->
+      <div class="right-panel">
+        <div class="title-header">SMS 그룹추가</div>
+
+        <div class="form-section">
+          <div class="form-item">
+            <label>그룹명 <span class="required">*</span></label>
+            <input
+              v-model="formData.groupName"
+              type="text"
+              class="form-input"
+              placeholder="그룹명"
+            />
+          </div>
+
+          <div class="form-item">
+            <label>그룹설명</label>
+            <input
+              v-model="formData.groupDescription"
+              type="text"
+              class="form-input"
+              placeholder="그룹설명"
+            />
+          </div>
+
+          <div class="form-item">
+            <label class="label-with-upload">
+              <span>텍스트입력 <span class="required">*</span></span>
+              <button class="btn btn-upload-icon" type="button" @click="handleFileUpload" title="파일 업로드">
+                <svg class="ico-upload" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <!-- 문서 아이콘 -->
+                  <path d="M6 2C5.44772 2 5 2.44772 5 3V21C5 21.5523 5.44772 22 6 22H18C18.5523 22 19 21.5523 19 21V8L14 3H6Z" fill="black"/>
+                  <path d="M14 3V8H19" stroke="white" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+                  <!-- 문서 내부 선들 -->
+                  <line x1="8" y1="11" x2="16" y2="11" stroke="white" stroke-width="1"/>
+                  <line x1="8" y1="13" x2="16" y2="13" stroke="white" stroke-width="1"/>
+                  <line x1="8" y1="15" x2="14" y2="15" stroke="white" stroke-width="1"/>
+                  <line x1="8" y1="17" x2="12" y2="17" stroke="white" stroke-width="1"/>
+                  <!-- 접힌 모서리 -->
+                  <path d="M14 3L19 8H14V3Z" fill="white"/>
+                  <!-- 오른쪽 하단 원과 화살표 -->
+                  <circle cx="17" cy="19" r="3" fill="black"/>
+                  <path d="M17 16.5V19M17 19L15.5 17.5M17 19L18.5 17.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </label>
+            <textarea
+              v-model="formData.textInput"
+              class="form-textarea"
+              placeholder="전화번호:청구계정번호:이름 형식으로 입력하세요"
+              rows="10"
+            ></textarea>
+          </div>
+
+          <div class="input-info">
+            <p class="info-text">
+              * 입력형식 : 전화번호; 청구계정번호;예약어1;예약어2; _예약어7까지
+            </p>
+            <p class="info-text">* 15000건까지 붙여넣기 가능합니다.</p>
+            <button class="btn-validate" @click="handleValidate">데이터검증</button>
+          </div>
         </div>
 
-        <button class="btn btn-search" @click="handleSearch">조회</button>
-        <button class="btn btn-delete" @click="handleDelete" :disabled="selectedItems.length === 0">삭제</button>
-        <button class="btn btn-register" @click="openRegisterModal">등록</button>
+        <div class="validation-section">
+          <div class="section-title">데이터검증결과</div>
+          <div class="table-wrapper">
+            <DataTable
+              :columns="validationColumns"
+              :data="validationData"
+              :loading="validationLoading"
+              :selectable="false"
+              row-key="id"
+            />
+          </div>
+          <div class="validation-summary">
+            <span>전체 항목: {{ validationData.length }}</span>
+            <span>[실패 : {{ failedCount }} / 전체: {{ validationData.length }}]</span>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Main Content Section -->
-    <div class="main-content">
-      <div class="section-title">OBTM DB 목록</div>
-
-      <div class="table-wrapper">
-        <DataTable
-          :columns="tableColumns"
-          :data="paginatedCampaignList"
-          :loading="loading"
-          :selectable="true"
-          :selected-items="selectedItems"
-          row-key="id"
-          :maxHeight="'100%'"
-          @selection-change="handleSelectionChange"
-        >
-          <template #cell-action="{ item }">
-            <button class="btn-detail" @click="openDetailModal(item)">상세정보</button>
-          </template>
-        </DataTable>
-      </div>
-
-      <div class="pagination-container">
-        <div class="total-count">
-          {{
-            t("common.totalCount", {
-              count: totalCount || 0,
-            })
-          }}
-        </div>
-        <div class="pagination-center">
-          <Pagination
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            @page-change="handlePageChange"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- OBTM DB 등록 모달 -->
-    <div v-if="isRegisterModalOpen" class="modal-overlay" @click="closeRegisterModal">
-      <div class="modal-container-large" @click.stop>
-        <div class="modal-header">
-          <h3>{{ selectedObtmItem ? 'OBTM DB 상세정보' : 'OBTM DB 등록' }}</h3>
-          <button class="close-btn" @click="closeRegisterModal"></button>
-        </div>
-        <div class="modal-body">
-          <ObtmDetail ref="obtmDetailRef" :obtm-item="selectedObtmItem" />
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" @click="handleSave">저장</button>
-          <button class="btn btn-secondary" @click="closeRegisterModal">취소</button>
-        </div>
-      </div>
+    <!-- 등록 버튼 -->
+    <div class="save-button-container">
+      <button class="btn-save" @click="handleSave">등록</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
-import { useI18n } from "vue-i18n";
+import { ref, computed } from "vue";
 import DataTable, { type TableColumn } from "@/components/common/DataTable.vue";
-import ObtmDetail from "./ObtmDetail.vue";
-import Pagination from "@/components/common/Pagination.vue";
-import searchIcon from "@/assets/images/common/ico_search.svg";
 
-const { t } = useI18n();
-
-const loading = ref(false);
-const filterValue = ref("campaign_id");
-const searchValue = ref("");
-const startDate = ref("2025-07-10");
-const endDate = ref("2025-07-10");
-const campaignList = ref<Record<string, unknown>[]>([]);
-const totalCount = ref(0);
-const isRegisterModalOpen = ref(false);
-
-// 페이징 관련 state
-const currentPage = ref(1);
-const itemsPerPage = ref(10);
-
-// 페이징 계산
-const totalPages = computed(() => {
-  return Math.ceil(totalCount.value / itemsPerPage.value);
+const formData = ref({
+  campaignId: "",
+  campaignName: "",
+  groupName: "전일AS캠페인",
+  groupDescription: "",
+  textInput: "",
 });
 
-const paginatedCampaignList = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return campaignList.value.slice(start, end);
-});
-const obtmDetailRef = ref<InstanceType<typeof ObtmDetail> | null>(null);
-const selectedItems = ref<Record<string, unknown>[]>([]);
-const selectedObtmItem = ref<Record<string, unknown> | null>(null);
+const customerList = ref<Array<{ number: string; status: string }>>([]);
+const customerListText = ref("0001234568; 우선\n0001234568; 일반\n0001234568; 우선\n0001234568; 일반");
 
-// 테이블 컬럼 설정
-const tableColumns: TableColumn[] = [
-  {
-    key: "sequence",
-    title: "순번",
-    width: "80px",
-    sortable: false,
-    align: "center",
-  },
-  {
-    key: "customer_number",
-    title: "고객번호",
-    width: "130px",
-    sortable: false,
-    align: "center",
-  },
-  {
-    key: "campaign_id",
-    title: "캠페인 ID",
-    width: "120px",
-    sortable: false,
-    align: "center",
-  },
-  {
-    key: "campaign_name",
-    title: "캠페인명",
-    width: "150px",
-    sortable: false,
-    align: "center",
-  },
-  {
-    key: "special_db_status",
-    title: "스페셜 DB 여부",
-    width: "130px",
-    sortable: false,
-    align: "center",
-  },
-  {
-    key: "assignment_date",
-    title: "등록일",
-    width: "120px",
-    sortable: false,
-    align: "center",
-    dateFormat: "YYYY-MM-DD",
-  },
-  {
-    key: "action",
-    title: "상세정보",
-    width: "100px",
-    sortable: false,
-    align: "center",
-  },
-];
-
-// 더미 데이터 생성
-const generateDummyData = () => {
-  const dummyData: Record<string, unknown>[] = [];
-  const campaignNames = [
-    "신규 고객 유치 캠페인",
-    "여름 프로모션 캠페인",
-    "회원 재방문 유도 캠페인",
-    "생일 축하 캠페인",
-    "할인 이벤트 캠페인",
-    "신제품 출시 캠페인",
-    "VIP 고객 특별 혜택",
-    "시즌 오프 세일 캠페인",
-    "추천인 보상 캠페인",
-    "연말 감사 이벤트"
-  ];
-  const campaignIds = [
-    "CAMP001",
-    "CAMP002",
-    "CAMP003",
-    "CAMP004",
-    "CAMP005",
-    "CAMP006",
-    "CAMP007",
-    "CAMP008",
-    "CAMP009",
-    "CAMP010"
-  ];
-  const specialDbStatuses = ["우선", "일반", "우선", "일반", "일반", "우선", "일반", "일반", "우선", "우선"];
-
-  // 임의 날짜 생성 함수 (최근 30일 이내)
-  const getRandomDate = () => {
-    const today = new Date();
-    const daysAgo = Math.floor(Math.random() * 30);
-    const randomDate = new Date(today);
-    randomDate.setDate(today.getDate() - daysAgo);
-    
-    const year = randomDate.getFullYear();
-    const month = String(randomDate.getMonth() + 1).padStart(2, "0");
-    const day = String(randomDate.getDate()).padStart(2, "0");
-    
-    return `${year}-${month}-${day}`;
-  };
-
-  for (let i = 1; i <= 10; i++) {
-    dummyData.push({
-      id: `OBTM${String(i).padStart(5, "0")}`,
-      sequence: i,
-      customer_number: "0001234567",
-      campaign_name: campaignNames[i - 1],
-      campaign_id: campaignIds[i - 1],
-      special_db_status: specialDbStatuses[i - 1],
-      assignment_date: getRandomDate(),
-    });
-  }
-
-  return dummyData;
+const updateCustomerList = () => {
+  const lines = customerListText.value.split("\n").filter((line) => line.trim());
+  customerList.value = lines.map((line) => {
+    const parts = line.split(";").map((part) => part.trim());
+    return {
+      number: parts[0] || "",
+      status: parts[1] || "",
+    };
+  });
 };
 
-// 검색 처리
-const handleSearch = () => {
-  loading.value = true;
-  currentPage.value = 1; // 검색 시 첫 페이지로
-  // TODO: API 호출 로직 구현
+// 초기 데이터 로드
+updateCustomerList();
+
+const validationLoading = ref(false);
+const validationData = ref<Record<string, unknown>[]>([]);
+
+const validationColumns: TableColumn[] = [
+  { key: "phone_number", title: "전화번호", width: "120px", sortable: false, align: "center" },
+  { key: "billing_account", title: "청구계정번호", width: "140px", sortable: false, align: "center" },
+  { key: "reserved1", title: "예약어1", width: "100px", sortable: false, align: "center" },
+  { key: "reserved2", title: "예약어2", width: "100px", sortable: false, align: "center" },
+  { key: "reserved3", title: "예약어3", width: "100px", sortable: false, align: "center" },
+  { key: "reserved4", title: "예약어4", width: "100px", sortable: false, align: "center" },
+  { key: "reserved5", title: "예약어5", width: "100px", sortable: false, align: "center" },
+  { key: "reserved6", title: "예약어6", width: "100px", sortable: false, align: "center" },
+  { key: "reserved7", title: "예약어7", width: "100px", sortable: false, align: "center" },
+];
+
+const failedCount = computed(() => {
+  return validationData.value.filter((item) => item.status === "failed").length;
+});
+
+const handleValidate = () => {
+  validationLoading.value = true;
+  
+  // 텍스트 입력 파싱
+  const lines = formData.value.textInput.split("\n").filter((line) => line.trim());
+  const parsedData: Record<string, unknown>[] = [];
+
+  lines.forEach((line, index) => {
+    const parts = line.split(":");
+    parsedData.push({
+      id: `validation_${index}`,
+      phone_number: parts[0] || "",
+      billing_account: parts[1] || "",
+      reserved1: parts[2] || "",
+      reserved2: parts[3] || "",
+      reserved3: parts[4] || "",
+      reserved4: parts[5] || "",
+      reserved5: parts[6] || "",
+      reserved6: parts[7] || "",
+      reserved7: parts[8] || "",
+      status: parts.length >= 3 ? "success" : "failed",
+    });
+  });
+
   setTimeout(() => {
-    campaignList.value = generateDummyData();
-    totalCount.value = campaignList.value.length;
-    loading.value = false;
+    validationData.value = parsedData;
+    validationLoading.value = false;
   }, 500);
 };
 
-// 페이지 변경 처리
-const handlePageChange = (page: number) => {
-  currentPage.value = page;
+const handleFileUpload = () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".txt,.csv";
+  input.onchange = (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        formData.value.textInput = content;
+      };
+      reader.readAsText(file);
+    }
+  };
+  input.click();
 };
 
-// 모달 열기
-const openRegisterModal = () => {
-  selectedObtmItem.value = null;
-  isRegisterModalOpen.value = true;
-};
-
-// 상세정보 모달 열기
-const openDetailModal = (item: Record<string, unknown>) => {
-  selectedObtmItem.value = item;
-  isRegisterModalOpen.value = true;
-};
-
-// 모달 닫기
-const closeRegisterModal = () => {
-  isRegisterModalOpen.value = false;
-  selectedObtmItem.value = null;
-};
-
-// 선택 변경 처리
-const handleSelectionChange = (selected: Record<string, unknown>[]) => {
-  selectedItems.value = selected;
-};
-
-// 삭제 처리
-const handleDelete = () => {
-  if (selectedItems.value.length === 0) {
-    alert("삭제할 항목을 선택해주세요.");
-    return;
-  }
-
-  const deleteCount = selectedItems.value.length;
-  const confirmMessage =
-    deleteCount === 1
-      ? "선택한 항목을 삭제하시겠습니까?"
-      : `선택한 ${deleteCount}개의 항목을 삭제하시겠습니까?`;
-
-  if (confirm(confirmMessage)) {
-    // TODO: 삭제 API 호출 로직 구현
-    console.log("삭제할 항목:", selectedItems.value);
-    selectedItems.value = [];
-    handleSearch(); // 목록 새로고침
-    alert("삭제되었습니다.");
-  }
-};
-
-// 저장 처리
 const handleSave = () => {
   // TODO: 저장 로직 구현
-  if (obtmDetailRef.value) {
-    obtmDetailRef.value.handleSave();
-  }
-  console.log("OBTM DB 저장");
-  closeRegisterModal();
-  handleSearch(); // 목록 새로고침
+  console.log("저장", formData.value);
 };
-
-// 컴포넌트 마운트 시 초기화
-onMounted(() => {
-  handleSearch();
-});
 </script>
 
 <style scoped lang="scss">
-.campaign-page {
+.obtm-detail-page {
   padding: $spacing-xl;
   height: calc(100vh - 70px);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  background: #ffffff;
 }
 
-.search-section {
+.page-layout {
+  display: flex;
+  gap: $spacing-lg;
+  height: 100%;
+}
+
+.left-panel {
+  width: 300px;
   flex-shrink: 0;
-  margin-bottom: $spacing-lg;
-  background: #ffffff;
-  padding: $spacing-md;
+  display: flex;
+  flex-direction: column;
   border: 1px solid $border-color;
-  border-radius: $border-radius-sm;
+  background: #ffffff;
+  height: 100%;
+  max-height: 90%;
+}
 
-  .search-filters {
-    display: flex;
-    align-items: center;
-    gap: $spacing-md;
-    flex-wrap: wrap;
+.title-header {
+  background-color: #4169e1;
+  padding: $spacing-md;
+  font-size: $font-size-sm;
+  font-weight: 600;
+  color: #ffffff;
+  border-bottom: 1px solid $border-color;
+}
 
-    .filter-select {
-      padding: $spacing-xs $spacing-sm;
-      border: 1px solid $border-color;
-      border-radius: $border-radius-sm;
+.form-section {
+  padding: $spacing-md;
+
+  .form-item {
+    margin-bottom: $spacing-md;
+
+    label {
+      display: block;
       font-size: $font-size-sm;
-      background: #ffffff;
-      min-width: 120px;
-      height: 32px;
-    }
-
-    .search-input-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-      border: 1px solid $border-color;
-      border-radius: $border-radius-sm;
-      background: #ffffff;
-      padding: 0 $spacing-xs;
-
-      .search-input {
-        border: none;
-        outline: none;
-        padding: $spacing-xs $spacing-sm;
-        font-size: $font-size-sm;
-        flex: 1;
-        min-width: 200px;
-        height: 30px;
-      }
-
-      .clear-btn {
-        border: none;
-        background: transparent;
-        color: #999;
-        font-size: 20px;
-        cursor: pointer;
-        padding: 0 $spacing-xs;
-        line-height: 1;
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        &:hover {
-          color: #333;
-        }
-      }
-
-      .search-btn {
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        padding: $spacing-xs;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-
-        img {
-          width: 16px;
-          height: 16px;
-        }
-      }
-    }
-
-    .period-label {
-      font-size: $font-size-sm;
+      font-weight: 600;
       color: $text-color;
-      white-space: nowrap;
-    }
+      margin-bottom: $spacing-xs;
 
-    .date-range {
-      display: flex;
-      align-items: center;
-      gap: $spacing-xs;
-
-      .date-input {
-        padding: $spacing-xs $spacing-sm;
-        border: 1px solid $border-color;
-        border-radius: $border-radius-sm;
-        font-size: $font-size-sm;
-        background: #ffffff;
-        height: 32px;
-        width: 140px;
-      }
-
-      .date-separator {
-        color: $text-color;
-        font-size: $font-size-sm;
-      }
-    }
-
-    .btn-search {
-      padding: $spacing-xs calc($spacing-lg * 1.1);
-      background-color: #555555;
-      color: #ffffff;
-      border: none;
-      border-radius: $border-radius-sm;
-      font-size: $font-size-sm;
-      font-weight: 600;
-      cursor: pointer;
-      height: 32px;
-      white-space: nowrap;
-      min-width: 110px;
-
-      &:hover {
-        background-color: #444444;
-      }
-    }
-
-    .btn-delete {
-      padding: $spacing-xs calc($spacing-lg * 1.1);
-      background-color: #dc3545;
-      color: #ffffff;
-      border: none;
-      border-radius: $border-radius-sm;
-      font-size: $font-size-sm;
-      font-weight: 600;
-      cursor: pointer;
-      height: 32px;
-      white-space: nowrap;
-      min-width: 110px;
-
-      &:hover:not(:disabled) {
-        background-color: #c82333;
-      }
-
-      &:disabled {
-        background-color: #6c757d;
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-    }
-
-    .btn-register {
-      padding: $spacing-xs calc($spacing-lg * 1.1);
-      background-color: #279bd8;
-      color: #ffffff;
-      border: none;
-      border-radius: $border-radius-sm;
-      font-size: $font-size-sm;
-      font-weight: 600;
-      cursor: pointer;
-      height: 32px;
-      white-space: nowrap;
-      min-width: 110px;
-
-      &:hover {
-        background-color: #2196c4;
+      .required {
+        color: #dc3545;
       }
     }
   }
 }
 
-.main-content {
+.input-with-dropdown {
+  display: flex;
+  align-items: center;
+  position: relative;
+
+  .form-input {
+    flex: 1;
+    padding-right: 30px;
+  }
+
+  .dropdown-btn {
+    position: absolute;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #767676;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.customer-list-section {
   flex: 1;
   display: flex;
   flex-direction: column;
+  border-top: 1px solid $border-color;
+  min-height: 0;
   overflow: hidden;
-  background: #ffffff;
-  border: 1px solid $border-color;
-  border-radius: $border-radius-sm;
-  padding: $spacing-lg;
-
-  .section-title {
-    font-size: $font-size-lg;
-    font-weight: 600;
-    color: $text-color;
-    margin-bottom: $spacing-md;
-  }
-
-  .table-wrapper {
-    flex: 1;
-    overflow: auto;
-    margin-bottom: $spacing-md;
-  }
-
-  .pagination-container {
-    flex-shrink: 0;
-    margin-top: $spacing-md;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    padding: $spacing-sm $spacing-md;
-    border-top: 1px solid $border-color;
-  }
-
-  .total-count {
-    position: absolute;
-    left: $spacing-md;
-    font-size: $font-size-sm;
-    color: $text-light;
-  }
-
-  .pagination-center {
-    display: flex;
-    justify-content: center;
-    flex: 1;
-  }
 }
 
-.btn-detail {
-  padding: $spacing-xs $spacing-md;
-  background-color: #279bd8;
+.list-header {
+  background-color: #4169e1;
   color: #ffffff;
-  border: none;
-  border-radius: $border-radius-sm;
+  padding: $spacing-md;
   font-size: $font-size-sm;
   font-weight: 600;
-  cursor: pointer;
-  height: 28px;
-  white-space: nowrap;
-  transition: background-color 0.2s;
+}
 
-  &:hover {
-    background-color: #2196c4;
+.customer-textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 200px;
+  padding: $spacing-sm;
+  border: 1px solid $border-form;
+  border-radius: 4px;
+  font-size: $font-size-sm;
+  background: #ffffff;
+  outline: none;
+  resize: none;
+  transition: border 0.1s linear;
+  font-family: inherit;
+  overflow-y: auto;
+
+  &:focus {
+    border: 1px solid #279bd8;
+  }
+
+  &::placeholder {
+    color: #767676;
   }
 }
 
-:deep(.modal-container-large) {
-  width: 98% !important;
-  max-width: 95vw !important;
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid $border-color;
+  background: #ffffff;
+  padding: $spacing-lg;
+  max-height: 90%;
+  overflow: auto;
+}
+
+.section-title {
+  font-size: $font-size-lg;
+  font-weight: 600;
+  color: $text-color;
+  margin-bottom: $spacing-md;
+}
+
+.form-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 $spacing-sm;
+  border: 1px solid $border-form;
+  border-radius: 4px;
+  font-size: $font-size-base;
+  background: #ffffff;
+  outline: none;
+  transition: border 0.1s linear;
+
+  &:focus {
+    border: 1px solid #279bd8;
+  }
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: $spacing-sm;
+  border: 1px solid $border-form;
+  border-radius: 4px;
+  font-size: $font-size-base;
+  background: #ffffff;
+  outline: none;
+  resize: vertical;
+  transition: border 0.1s linear;
+  font-family: inherit;
+
+  &:focus {
+    border: 1px solid #279bd8;
+  }
+}
+
+.input-info {
+  margin-top: $spacing-md;
+
+  .info-text {
+    color: #dc3545;
+    font-size: $font-size-sm;
+    margin-bottom: $spacing-xs;
+  }
+
+  .btn-validate {
+    padding: $spacing-sm $spacing-lg;
+    background-color: #555555;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    font-size: $font-size-base;
+    font-weight: 600;
+    cursor: pointer;
+    min-width: 120px;
+    height: 40px;
+    margin-top: $spacing-sm;
+
+    &:hover {
+      background-color: #444444;
+    }
+  }
+}
+
+.validation-section {
+  margin-top: $spacing-xl;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid $border-color;
+  margin-bottom: $spacing-md;
+}
+
+.validation-summary {
+  display: flex;
+  gap: $spacing-lg;
+  font-size: $font-size-sm;
+  color: $text-color;
+}
+
+.form-item .label-with-upload {
+  display: inline-flex !important;
+  align-items: center;
+  gap: $spacing-sm;
+  white-space: nowrap;
+  margin-bottom: $spacing-xs;
+}
+
+.btn-upload-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background-color: #3e435e;
+  border: none;
+  cursor: pointer;
+
+  .ico-upload {
+    width: 24px;
+    height: 24px;
+    display: block;
+  }
+
+  &:hover {
+    background-color: #3c4973;
+  }
+}
+
+.save-button-container {
+  position: fixed;
+  bottom: $spacing-lg;
+  right: calc(#{$spacing-xl} + #{$spacing-lg});
+  z-index: 1000;
+}
+
+.btn-save {
+  padding: $spacing-sm $spacing-xxl;
+  background-color: #555555;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: $font-size-base;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 100px;
+  height: 40px;
+  transition: background-color 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  &:hover {
+    background-color: #444444;
+  }
+
+  &:active {
+    background-color: #333333;
+  }
 }
 </style>
-

@@ -1,6 +1,6 @@
 <template>
   <div class="counselor-page">
-    <div class="page-layout" :class="{ 'detail-open': isDetailOpen && activeTab === 'campaign' }">
+    <div class="page-layout" :class="{ 'detail-open': isDetailOpen && (activeTab === 'campaign' || activeTab === 'campaignEdit') }">
       <div class="main-content-area">
     <!-- 상단 헤더 -->
     <div class="top-header">
@@ -248,6 +248,7 @@
           <div class="tabs">
             <div class="tab" :class="{ active: activeTab === 'contract' }" @click="activeTab = 'contract'">계약기본정보</div>
             <div class="tab" :class="{ active: activeTab === 'campaign' }" @click="activeTab = 'campaign'">캠페인</div>
+            <div class="tab" :class="{ active: activeTab === 'campaignEdit' }" @click="activeTab = 'campaignEdit'">캠페인(수정)</div>
             <div class="tab" :class="{ active: activeTab === 'address' }" @click="activeTab = 'address'">실주소 <span class="badge">2</span></div>
             <div class="tab" :class="{ active: activeTab === 'billing' }" @click="activeTab = 'billing'">청구이력 <span class="badge">3</span></div>
             <div class="tab" :class="{ active: activeTab === 'reception' }" @click="activeTab = 'reception'">접수이력</div>
@@ -257,7 +258,7 @@
 
           <div class="tab-content">
             <!-- 왼쪽 공백 영역 (캠페인 탭 제외) -->
-            <div class="tab-left-spacer" v-if="activeTab !== 'campaign'"></div>
+            <div class="tab-left-spacer" v-if="activeTab !== 'campaign' && activeTab !== 'campaignEdit'"></div>
 
             <!-- 계약기본정보 탭 -->
             <div v-if="activeTab === 'contract'" class="tab-panel contract-tab">
@@ -331,6 +332,47 @@
               </table>
             </div>
             </template>
+
+            <!-- 캠페인(수정) 탭 -->
+            <template v-else-if="activeTab === 'campaignEdit'">
+            <!-- 캠페인 테이블 -->
+            <div class="campaign-table-section" :class="{ 'with-detail': isDetailOpen }">
+              <table class="campaign-table campaign-edit-table">
+                <thead>
+                  <tr>
+                    <th class="text-center">시행일</th>
+                    <th>캠페인명</th>
+                    <th class="equal-width">말할거리</th>
+                    <th class="equal-width">받은문자내용</th>
+                    <th class="text-center">직전이력</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="text-center">20250717</td>
+                    <td>전일 TV AS 완료</td>
+                    <td class="talking-points">폭우, 폭설 날씨 궂어도 끄떡없이 깔끔하게 TV 보세요 하나카드 두 달 간 실적 없이도 13,000원 할인, 26,000원 챙겨가세요</td>
+                    <td class="sms-content">안녕하세요. 스카이라이프입니다. 전일 TV AS 완료 관련하여 연락드립니다. 추가 문의사항이 있으시면 고객센터로 연락주시기 바랍니다.</td>
+                    <td class="text-center">권유못함</td>
+                  </tr>
+                  <tr>
+                    <td class="text-center">20250701</td>
+                    <td>전월 TV 단독 설치</td>
+                    <td class="talking-points">TV 하나만 보시던 가격보다 저렴하게 인터넷+기가와이파이까지 하나카드 두 달 간 실적 없이도 13,000원 할인, 26,000원 챙겨가세요</td>
+                    <td class="sms-content">스카이라이프 고객님께 안내드립니다. 전월 TV 단독 설치 고객님을 위한 특별 혜택이 준비되어 있습니다. 자세한 내용은 고객센터로 문의해주세요.</td>
+                    <td class="text-center">보류</td>
+                  </tr>
+                  <tr>
+                    <td class="text-center">20250623</td>
+                    <td>대구 경북 지역 타깃</td>
+                    <td class="talking-points">계신 지역이 너무 좋은 지역이라서, 안테나 없이 TV 보세요 하나카드 두 달 간 실적 없이도 13,000원 할인, 26,000원 챙겨가세요</td>
+                    <td class="sms-content">대구 경북 지역 고객님께 특별한 혜택을 안내드립니다. 안테나 없이도 깨끗한 TV 시청이 가능합니다. 하나카드 할인 혜택도 함께 제공됩니다.</td>
+                    <td class="text-center">성공</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            </template>
           </div>
         </div>
           </div>
@@ -339,7 +381,7 @@
     </div>
 
       <!-- 우측 상세 패널 (Pipe.vue 스타일) -->
-      <div v-if="activeTab === 'campaign' && isDetailOpen" class="detail-panel">
+      <div v-if="(activeTab === 'campaign' || activeTab === 'campaignEdit') && isDetailOpen" class="detail-panel">
         <div class="detail-panel-body">
           <CounselorDetail />
         </div>
@@ -357,7 +399,7 @@ const isDetailOpen = ref(false);
 
 // 캠페인 탭 선택 시 패널 자동 열기
 watch(activeTab, (newTab) => {
-  if (newTab === "campaign") {
+  if (newTab === "campaign" || newTab === "campaignEdit") {
     isDetailOpen.value = true;
   } else {
     isDetailOpen.value = false;
@@ -865,12 +907,33 @@ watch(activeTab, (newTab) => {
           line-height: 1.5;
         }
 
+        &.sms-content {
+          line-height: 1.5;
+        }
+
         &.checked {
           text-align: center;
           color: #27ae60;
           font-weight: bold;
         }
       }
+    }
+  }
+
+  &.campaign-edit-table {
+    th.equal-width {
+      width: 25%;
+    }
+
+    th.text-center,
+    td.text-center {
+      text-align: center;
+    }
+
+    td.talking-points,
+    td.sms-content {
+      width: 25%;
+      max-width: none;
     }
   }
 

@@ -5,7 +5,7 @@
       <div class="form-section">
         <dl class="form-grid">
           <dt>캠페인명</dt>
-          <dd>
+          <dd class="quarter-width">
             <div class="input-with-dropdown">
               <input
                 v-model="formData.campaignName"
@@ -23,7 +23,7 @@
           </dd>
 
           <dt>담당자 소속</dt>
-          <dd>
+          <dd class="quarter-width">
             <select v-model="formData.managerAffiliation" class="form-select">
               <option value="">선택하세요</option>
               <option value="dept1">부서1</option>
@@ -33,7 +33,7 @@
           </dd>
 
           <dt>담당자명</dt>
-          <dd>
+          <dd class="quarter-width">
             <div class="input-with-icon">
               <input
                 v-model="formData.managerName"
@@ -48,7 +48,7 @@
           </dd>
 
           <dt>시작일</dt>
-          <dd>
+          <dd class="quarter-width">
             <div class="input-with-icon">
               <input
                 v-model="formData.startDate"
@@ -60,7 +60,7 @@
           </dd>
 
           <dt>종료일</dt>
-          <dd>
+          <dd class="quarter-width">
             <div class="input-with-icon">
               <input
                 v-model="formData.endDate"
@@ -76,36 +76,42 @@
       <!-- 타깃 고객군 설정 섹션 -->
       <div class="form-section">
         <h3 class="section-title">타깃 고객군 설정</h3>
-        <dl class="form-grid">
-          <dt>대분류</dt>
-          <dd>
-            <select v-model="formData.majorCategory" class="form-select">
-              <option value="">선택하세요</option>
-              <option value="cat1">대분류1</option>
-              <option value="cat2">대분류2</option>
-              <option value="cat3">대분류3</option>
-            </select>
-          </dd>
+        <dl class="category-grid">
+          <div class="category-item">
+            <dt>대분류</dt>
+            <dd>
+              <select v-model="formData.majorCategory" class="form-select category-select">
+                <option value="">선택하세요</option>
+                <option value="cat1">대분류1</option>
+                <option value="cat2">대분류2</option>
+                <option value="cat3">대분류3</option>
+              </select>
+            </dd>
+          </div>
 
-          <dt>중분류</dt>
-          <dd>
-            <select v-model="formData.middleCategory" class="form-select">
-              <option value="">선택하세요</option>
-              <option value="subcat1">중분류1</option>
-              <option value="subcat2">중분류2</option>
-              <option value="subcat3">중분류3</option>
-            </select>
-          </dd>
+          <div class="category-item">
+            <dt>중분류</dt>
+            <dd>
+              <select v-model="formData.middleCategory" class="form-select category-select">
+                <option value="">선택하세요</option>
+                <option value="subcat1">중분류1</option>
+                <option value="subcat2">중분류2</option>
+                <option value="subcat3">중분류3</option>
+              </select>
+            </dd>
+          </div>
 
-          <dt>소분류</dt>
-          <dd>
-            <select v-model="formData.minorCategory" class="form-select">
-              <option value="">선택하세요</option>
-              <option value="detail1">소분류1</option>
-              <option value="detail2">소분류2</option>
-              <option value="detail3">소분류3</option>
-            </select>
-          </dd>
+          <div class="category-item">
+            <dt>소분류</dt>
+            <dd>
+              <select v-model="formData.minorCategory" class="form-select category-select">
+                <option value="">선택하세요</option>
+                <option value="detail1">소분류1</option>
+                <option value="detail2">소분류2</option>
+                <option value="detail3">소분류3</option>
+              </select>
+            </dd>
+          </div>
         </dl>
       </div>
 
@@ -296,6 +302,42 @@ defineExpose({
     display: flex;
     align-items: center;
     gap: $spacing-xs;
+
+    &.quarter-width {
+      width: 25%;
+      max-width: 25%;
+    }
+  }
+}
+
+.category-grid {
+  display: flex;
+  gap: $spacing-md;
+  align-items: flex-start;
+
+  .category-item {
+    flex: 0 0 20%;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+
+    dt {
+      font-size: $font-size-base;
+      font-weight: 600;
+      color: $text-color;
+      white-space: nowrap;
+    }
+
+    dd {
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+  }
+
+  .category-select {
+    width: 100%;
+    flex: none;
   }
 }
 

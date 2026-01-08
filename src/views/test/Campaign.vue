@@ -1,563 +1,523 @@
 <template>
-  <div class="campaign-page">
-    <!-- Top Section - Search/Filter Controls -->
-    <div class="search-section">
-      <div class="search-filters">
-        <select v-model="filterValue" class="filter-select">
-          <option value="campaign_name">캠페인 명</option>
-          <option value="campaign_id">캠페인 ID</option>
-          <option value="manager_name">사용자명</option>
-        </select>
+  <div class="campaign-detail-page">
+    <div class="form-container">
+      <!-- 캠페인 정보 섹션 -->
+      <div class="form-section">
+        <dl class="form-grid">
+          <dt>캠페인명</dt>
+          <dd class="quarter-width">
+            <input
+              v-model="formData.campaignName"
+              type="text"
+              class="form-input edit"
+              placeholder="캠페인명을 입력하세요"
+            />
+          </dd>
 
-        <div class="search-input-wrapper">
-          <input
-            v-model="searchValue"
-            type="text"
-            class="search-input"
-            placeholder="검색"
-          />
-          <button
-            v-if="searchValue"
-            class="clear-btn"
-            @click="searchValue = ''"
-          >
-            ×
-          </button>
-          <button class="search-btn" @click="handleSearch">
-            <img :src="searchIcon" alt="검색" />
-          </button>
-        </div>
+          <dt>캠페인ID</dt>
+          <dd>
+            <span class="auto-issue">자동발급</span>
+          </dd>
 
-        <span class="period-label">기간으로 조회</span>
+          <dt>담당자 소속</dt>
+          <dd class="quarter-width">
+            <select v-model="formData.managerAffiliation" class="form-select">
+              <option value="">선택하세요</option>
+              <option value="dept1">부서1</option>
+              <option value="dept2">부서2</option>
+              <option value="dept3">부서3</option>
+            </select>
+          </dd>
 
-        <div class="date-range">
-          <input
-            v-model="startDate"
-            type="date"
-            class="date-input"
-          />
-          <span class="date-separator">~</span>
-          <input
-            v-model="endDate"
-            type="date"
-            class="date-input"
-          />
-        </div>
+          <dt>담당자명</dt>
+          <dd class="quarter-width">
+            <div class="input-with-icon">
+              <input
+                v-model="formData.managerName"
+                type="text"
+                class="form-input"
+                placeholder="담당자명을 입력하세요"
+              />
+              <button class="search-icon-btn" type="button" @click="handleManagerSearch">
+                <img :src="searchIcon" alt="검색" />
+              </button>
+            </div>
+          </dd>
 
-        <button class="btn btn-search" @click="handleSearch">조회</button>
-        <button class="btn btn-delete" @click="handleDelete" :disabled="selectedItems.length === 0">삭제</button>
-        <button class="btn btn-register" @click="openRegisterModal">등록</button>
+          <dt>시작일</dt>
+          <dd class="quarter-width">
+            <div class="input-with-icon">
+              <input
+                v-model="formData.startDate"
+                type="date"
+                class="form-input"
+              />
+              <button class="calendar-icon-btn" type="button">📅</button>
+            </div>
+          </dd>
+
+          <dt>종료일</dt>
+          <dd class="quarter-width">
+            <div class="input-with-icon">
+              <input
+                v-model="formData.endDate"
+                type="date"
+                class="form-input"
+              />
+              <button class="calendar-icon-btn" type="button">📅</button>
+            </div>
+          </dd>
+        </dl>
       </div>
-    </div>
 
-    <!-- Main Content Section -->
-    <div class="main-content">
-      <div class="section-title">캠페인 목록</div>
+      <!-- 타깃 고객군 설정 섹션 -->
+      <div class="form-section">
+        <h3 class="section-title">타깃 고객군 설정</h3>
+        <dl class="category-grid">
+          <div class="category-item">
+            <dt>대분류</dt>
+            <dd>
+              <select v-model="formData.majorCategory" class="form-select category-select">
+                <option value="">선택하세요</option>
+                <option value="cat1">대분류1</option>
+                <option value="cat2">대분류2</option>
+                <option value="cat3">대분류3</option>
+              </select>
+            </dd>
+          </div>
 
-      <div class="table-wrapper">
-        <DataTable
-          :columns="tableColumns"
-          :data="paginatedCampaignList"
-          :loading="loading"
-          :selectable="true"
-          :selected-items="selectedItems"
-          row-key="campaign_id"
-          :maxHeight="'100%'"
-          @selection-change="handleSelectionChange"
-        >
-          <template #cell-action="{ item }">
-            <button class="btn-detail" @click="openDetailModal(item)">상세정보</button>
-          </template>
-        </DataTable>
+          <div class="category-item">
+            <dt>중분류</dt>
+            <dd>
+              <select v-model="formData.middleCategory" class="form-select category-select">
+                <option value="">선택하세요</option>
+                <option value="subcat1">중분류1</option>
+                <option value="subcat2">중분류2</option>
+                <option value="subcat3">중분류3</option>
+              </select>
+            </dd>
+          </div>
+
+          <div class="category-item">
+            <dt>소분류</dt>
+            <dd>
+              <select v-model="formData.minorCategory" class="form-select category-select">
+                <option value="">선택하세요</option>
+                <option value="detail1">소분류1</option>
+                <option value="detail2">소분류2</option>
+                <option value="detail3">소분류3</option>
+              </select>
+            </dd>
+          </div>
+        </dl>
       </div>
 
-      <div class="pagination-container">
-        <div class="total-count">
-          {{
-            t("common.totalCount", {
-              count: totalCount || 0,
-            })
-          }}
-        </div>
-        <div class="pagination-center">
-          <Pagination
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            @page-change="handlePageChange"
-          />
-        </div>
-      </div>
-    </div>
+      <!-- 텍스트 영역 섹션 -->
+      <div class="form-section">
+        <dl class="form-grid textarea-grid">
+          <dt>발송 메시지 입력</dt>
+          <dd>
+            <textarea
+              v-model="formData.sendMessage"
+              class="form-textarea"
+              placeholder="발송 메시지를 입력하세요"
+              rows="10"
+            ></textarea>
+          </dd>
 
-    <!-- 캠페인 등록 모달 -->
-    <div v-if="isRegisterModalOpen" class="modal-overlay" @click="closeRegisterModal">
-      <div class="modal-container-large" @click.stop>
-        <div class="modal-header">
-          <h3>{{ selectedCampaignItem ? '캠페인 상세정보' : '캠페인 등록' }}</h3>
-          <button class="close-btn" @click="closeRegisterModal"></button>
-        </div>
-        <div class="modal-body">
-          <CampaignDetail ref="campaignDetailRef" :campaign-item="selectedCampaignItem" />
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" @click="handleSave">저장</button>
-          <button class="btn btn-secondary" @click="closeRegisterModal">취소</button>
-        </div>
+          <dt>
+            <div class="label-with-button-vertical">
+              <span>고객번호 리스트 입력</span>
+              <button class="btn btn-upload-icon" type="button" @click="handleFileUpload" title="파일 업로드">
+                <svg class="ico-upload" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <!-- 문서 아이콘 -->
+                  <path d="M6 2C5.44772 2 5 2.44772 5 3V21C5 21.5523 5.44772 22 6 22H18C18.5523 22 19 21.5523 19 21V8L14 3H6Z" fill="black"/>
+                  <path d="M14 3V8H19" stroke="white" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+                  <!-- 문서 내부 선들 -->
+                  <line x1="8" y1="11" x2="16" y2="11" stroke="white" stroke-width="1"/>
+                  <line x1="8" y1="13" x2="16" y2="13" stroke="white" stroke-width="1"/>
+                  <line x1="8" y1="15" x2="14" y2="15" stroke="white" stroke-width="1"/>
+                  <line x1="8" y1="17" x2="12" y2="17" stroke="white" stroke-width="1"/>
+                  <!-- 접힌 모서리 -->
+                  <path d="M14 3L19 8H14V3Z" fill="white"/>
+                  <!-- 오른쪽 하단 원과 화살표 -->
+                  <circle cx="17" cy="19" r="3" fill="black"/>
+                  <path d="M17 16.5V19M17 19L15.5 17.5M17 19L18.5 17.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </dt>
+          <dd>
+            <textarea
+              v-model="formData.customerNumberList"
+              class="form-textarea"
+              placeholder="고객번호 리스트를 입력하세요"
+              rows="10"
+            ></textarea>
+          </dd>
+
+          <dt>문자내용 입력(선택입력)</dt>
+          <dd>
+            <textarea
+              v-model="formData.textContent"
+              class="form-textarea"
+              placeholder="문자내용을 입력하세요 (선택사항)"
+              rows="10"
+            ></textarea>
+          </dd>
+        </dl>
+      </div>
+
+      <!-- 저장 버튼 -->
+      <div class="save-button-container">
+        <button class="btn-save" @click="handleSave">등록</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
-import { useI18n } from "vue-i18n";
-import DataTable, { type TableColumn } from "@/components/common/DataTable.vue";
-import CampaignDetail from "./CampaignDetail.vue";
-import Pagination from "@/components/common/Pagination.vue";
+import { ref } from "vue";
 import searchIcon from "@/assets/images/common/ico_search.svg";
 
-const { t } = useI18n();
-
-const loading = ref(false);
-const filterValue = ref("campaign_name");
-const searchValue = ref("");
-const startDate = ref("2025-07-10");
-const endDate = ref("2025-07-10");
-const campaignList = ref<Record<string, unknown>[]>([]);
-const totalCount = ref(0);
-const isRegisterModalOpen = ref(false);
-
-// 페이징 관련 state
-const currentPage = ref(1);
-const itemsPerPage = ref(10);
-
-// 페이징 계산
-const totalPages = computed(() => {
-  return Math.ceil(totalCount.value / itemsPerPage.value);
+const formData = ref({
+  campaignName: "",
+  campaignId: "",
+  managerAffiliation: "",
+  managerName: "",
+  startDate: "",
+  endDate: "",
+  majorCategory: "",
+  middleCategory: "",
+  minorCategory: "",
+  sendMessage: "",
+  customerNumberList: "",
+  textContent: "",
 });
 
-const paginatedCampaignList = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return campaignList.value.slice(start, end);
-});
-const campaignDetailRef = ref<InstanceType<typeof CampaignDetail> | null>(null);
-const selectedItems = ref<Record<string, unknown>[]>([]);
-const selectedCampaignItem = ref<Record<string, unknown> | null>(null);
-
-// 테이블 컬럼 설정
-const tableColumns: TableColumn[] = [
-  {
-    key: "campaign_id",
-    title: "캠페인 ID",
-    width: "120px",
-    sortable: false,
-  },
-  {
-    key: "campaign_name",
-    title: "캠페인명",
-    width: "200px",
-    sortable: false,
-  },
-  {
-    key: "start_date",
-    title: "시작일",
-    width: "120px",
-    sortable: false,
-    dateFormat: "YYYY-MM-DD",
-  },
-  {
-    key: "end_date",
-    title: "종료일",
-    width: "120px",
-    sortable: false,
-    dateFormat: "YYYY-MM-DD",
-  },
-  {
-    key: "manager_affiliation",
-    title: "담당자 소속",
-    width: "150px",
-    sortable: false,
-  },
-  {
-    key: "manager_name",
-    title: "담당자명",
-    width: "120px",
-    sortable: false,
-  },
-  {
-    key: "sms_send_date",
-    title: "문자발송일",
-    width: "120px",
-    sortable: false,
-    dateFormat: "YYYY-MM-DD",
-  },
-  {
-    key: "action",
-    title: "상세정보",
-    width: "100px",
-    sortable: false,
-  },
-];
-
-// 더미 데이터 생성
-const generateDummyData = () => {
-  const dummyData: Record<string, unknown>[] = [];
-  const campaignNames = [
-    "신규 고객 유치 캠페인",
-    "여름 프로모션 캠페인",
-    "회원 재방문 유도 캠페인",
-    "생일 축하 캠페인",
-    "할인 이벤트 캠페인",
-    "신제품 출시 캠페인",
-    "VIP 고객 특별 혜택",
-    "시즌 오프 세일 캠페인",
-    "추천인 보상 캠페인",
-    "연말 감사 이벤트"
-  ];
-  const affiliations = ["마케팅팀", "영업팀", "고객서비스팀", "기획팀"];
-  const managerNames = ["김철수", "이영희", "박민수", "정수진", "최지영"];
-
-  for (let i = 1; i <= 10; i++) {
-    const startDate = new Date(2025, 6, 10 + i);
-    const endDate = new Date(2025, 6, 20 + i);
-    const smsDate = new Date(2025, 6, 15 + i);
-
-    dummyData.push({
-      campaign_id: `CAMP${String(i).padStart(5, "0")}`,
-      campaign_name: campaignNames[i - 1],
-      start_date: startDate.toISOString().split("T")[0],
-      end_date: endDate.toISOString().split("T")[0],
-      manager_affiliation: affiliations[i % affiliations.length],
-      manager_name: managerNames[i % managerNames.length],
-      sms_send_date: smsDate.toISOString().split("T")[0],
-    });
-  }
-
-  return dummyData;
+const handleManagerSearch = () => {
+  // TODO: 담당자 검색 로직 구현
+  console.log("담당자 검색");
 };
 
-// 검색 처리
-const handleSearch = () => {
-  loading.value = true;
-  currentPage.value = 1; // 검색 시 첫 페이지로
-  // TODO: API 호출 로직 구현
-  setTimeout(() => {
-    campaignList.value = generateDummyData();
-    totalCount.value = campaignList.value.length;
-    loading.value = false;
-  }, 500);
+const handleFileUpload = () => {
+  // TODO: 파일 업로드 로직 구현
+  console.log("파일 업로드");
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".txt,.csv";
+  input.onchange = (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        formData.value.customerNumberList = content;
+      };
+      reader.readAsText(file);
+    }
+  };
+  input.click();
 };
 
-// 페이지 변경 처리
-const handlePageChange = (page: number) => {
-  currentPage.value = page;
-};
-
-// 모달 열기
-const openRegisterModal = () => {
-  selectedCampaignItem.value = null;
-  isRegisterModalOpen.value = true;
-};
-
-// 상세정보 모달 열기
-const openDetailModal = (item: Record<string, unknown>) => {
-  selectedCampaignItem.value = item;
-  isRegisterModalOpen.value = true;
-};
-
-// 모달 닫기
-const closeRegisterModal = () => {
-  isRegisterModalOpen.value = false;
-  selectedCampaignItem.value = null;
-};
-
-// 선택 변경 처리
-const handleSelectionChange = (selected: Record<string, unknown>[]) => {
-  selectedItems.value = selected;
-};
-
-// 삭제 처리
-const handleDelete = () => {
-  if (selectedItems.value.length === 0) {
-    alert("삭제할 항목을 선택해주세요.");
-    return;
-  }
-
-  const deleteCount = selectedItems.value.length;
-  const confirmMessage =
-    deleteCount === 1
-      ? "선택한 항목을 삭제하시겠습니까?"
-      : `선택한 ${deleteCount}개의 항목을 삭제하시겠습니까?`;
-
-  if (confirm(confirmMessage)) {
-    // TODO: 삭제 API 호출 로직 구현
-    console.log("삭제할 항목:", selectedItems.value);
-    selectedItems.value = [];
-    handleSearch(); // 목록 새로고침
-    alert("삭제되었습니다.");
-  }
-};
-
-// 저장 처리
 const handleSave = () => {
   // TODO: 저장 로직 구현
-  if (campaignDetailRef.value) {
-    campaignDetailRef.value.handleSave();
-  }
-  console.log("캠페인 저장");
-  closeRegisterModal();
-  handleSearch(); // 목록 새로고침
+  console.log("저장", formData.value);
+  alert("저장되었습니다.");
 };
-
-// 컴포넌트 마운트 시 초기화
-onMounted(() => {
-  handleSearch();
-});
 </script>
 
 <style scoped lang="scss">
-.campaign-page {
+.campaign-detail-page {
   padding: $spacing-xl;
   height: calc(100vh - 70px);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  background: #ffffff;
 }
 
-.search-section {
-  flex-shrink: 0;
-  margin-bottom: $spacing-lg;
-  background: #ffffff;
-  padding: $spacing-md;
-  border: 1px solid $border-color;
-  border-radius: $border-radius-sm;
+.form-container {
+  max-width: 100%;
+  margin: 0;
+  background: transparent;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
 
-  .search-filters {
-    display: flex;
-    align-items: center;
-    gap: $spacing-md;
-    flex-wrap: wrap;
+.form-section {
+  margin-bottom: $spacing-xxl;
 
-    .filter-select {
-      padding: $spacing-xs $spacing-sm;
-      border: 1px solid $border-color;
-      border-radius: $border-radius-sm;
-      font-size: $font-size-sm;
-      background: #ffffff;
-      min-width: 120px;
-      height: 32px;
-    }
-
-    .search-input-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-      border: 1px solid $border-color;
-      border-radius: $border-radius-sm;
-      background: #ffffff;
-      padding: 0 $spacing-xs;
-
-      .search-input {
-        border: none;
-        outline: none;
-        padding: $spacing-xs $spacing-sm;
-        font-size: $font-size-sm;
-        flex: 1;
-        min-width: 200px;
-        height: 30px;
-      }
-
-      .clear-btn {
-        border: none;
-        background: transparent;
-        color: #999;
-        font-size: 20px;
-        cursor: pointer;
-        padding: 0 $spacing-xs;
-        line-height: 1;
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        &:hover {
-          color: #333;
-        }
-      }
-
-      .search-btn {
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        padding: $spacing-xs;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-
-        img {
-          width: 16px;
-          height: 16px;
-        }
-      }
-    }
-
-    .period-label {
-      font-size: $font-size-sm;
-      color: $text-color;
-      white-space: nowrap;
-    }
-
-    .date-range {
-      display: flex;
-      align-items: center;
-      gap: $spacing-xs;
-
-      .date-input {
-        padding: $spacing-xs $spacing-sm;
-        border: 1px solid $border-color;
-        border-radius: $border-radius-sm;
-        font-size: $font-size-sm;
-        background: #ffffff;
-        height: 32px;
-        width: 140px;
-      }
-
-      .date-separator {
-        color: $text-color;
-        font-size: $font-size-sm;
-      }
-    }
-
-    .btn-search {
-      padding: $spacing-xs calc($spacing-lg * 1.1);
-      background-color: #555555;
-      color: #ffffff;
-      border: none;
-      border-radius: $border-radius-sm;
-      font-size: $font-size-sm;
-      font-weight: 600;
-      cursor: pointer;
-      height: 32px;
-      white-space: nowrap;
-      min-width: 110px;
-
-      &:hover {
-        background-color: #444444;
-      }
-    }
-
-    .btn-delete {
-      padding: $spacing-xs calc($spacing-lg * 1.1);
-      background-color: #dc3545;
-      color: #ffffff;
-      border: none;
-      border-radius: $border-radius-sm;
-      font-size: $font-size-sm;
-      font-weight: 600;
-      cursor: pointer;
-      height: 32px;
-      white-space: nowrap;
-      min-width: 110px;
-
-      &:hover:not(:disabled) {
-        background-color: #c82333;
-      }
-
-      &:disabled {
-        background-color: #6c757d;
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-    }
-
-    .btn-register {
-      padding: $spacing-xs calc($spacing-lg * 1.1);
-      background-color: #279bd8;
-      color: #ffffff;
-      border: none;
-      border-radius: $border-radius-sm;
-      font-size: $font-size-sm;
-      font-weight: 600;
-      cursor: pointer;
-      height: 32px;
-      white-space: nowrap;
-      min-width: 110px;
-
-      &:hover {
-        background-color: #2196c4;
-      }
-    }
+  &:last-of-type {
+    margin-bottom: 0;
   }
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: #ffffff;
-  border: 1px solid $border-color;
-  border-radius: $border-radius-sm;
-  padding: $spacing-lg;
 
   .section-title {
     font-size: $font-size-lg;
     font-weight: 600;
     color: $text-color;
-    margin-bottom: $spacing-md;
+    margin-bottom: $spacing-lg;
+  }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: $spacing-md $spacing-lg;
+  align-items: center;
+
+  &.textarea-grid {
+    align-items: start;
+
+    dt {
+      padding-top: $spacing-sm;
+    }
   }
 
-  .table-wrapper {
-    flex: 1;
-    overflow: auto;
-    margin-bottom: $spacing-md;
+  dt {
+    font-size: $font-size-base;
+    font-weight: 600;
+    color: $text-color;
+    white-space: nowrap;
+
+    .label-with-button {
+      display: flex;
+      align-items: center;
+      gap: $spacing-xs;
+      justify-content: space-between;
+    }
+
+    .label-with-button-vertical {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $spacing-xs;
+    }
   }
 
-  .pagination-container {
-    flex-shrink: 0;
-    margin-top: $spacing-md;
+  dd {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+
+    &.quarter-width {
+      width: 25%;
+      max-width: 25%;
+    }
+  }
+}
+
+.category-grid {
+  display: flex;
+  gap: $spacing-md;
+  align-items: flex-start;
+
+  .category-item {
+    flex: 0 0 20%;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+
+    dt {
+      font-size: $font-size-base;
+      font-weight: 600;
+      color: $text-color;
+      white-space: nowrap;
+    }
+
+    dd {
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+  }
+
+  .category-select {
+    width: 100%;
+    flex: none;
+  }
+}
+
+.form-input {
+  flex: 1;
+  width: 100%;
+  height: 40px;
+  padding: 0 $spacing-sm;
+  border: 1px solid $border-form;
+  border-radius: 4px;
+  font-size: $font-size-base;
+  background: #ffffff;
+  outline: none;
+  transition: border 0.1s linear;
+
+  &:focus {
+    border: 1px solid #279bd8;
+  }
+
+  &::placeholder {
+    color: #767676;
+  }
+}
+
+.form-select {
+  flex: 1;
+  width: 100%;
+  height: 40px;
+  padding: 0 32px 0 $spacing-sm;
+  border: 1px solid $border-form;
+  border-radius: 4px;
+  font-size: $font-size-base;
+  background: #ffffff;
+  background-image: url(../../assets/icons/ico_select-down.svg);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px auto;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  transition: border 0.1s linear;
+
+  &:focus {
+    border: 1px solid #279bd8;
+    background-image: url(../../assets/icons/ico_select-up.svg);
+  }
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: $spacing-sm;
+  border: 1px solid $border-form;
+  border-radius: 4px;
+  font-size: $font-size-base;
+  background: #ffffff;
+  outline: none;
+  resize: vertical;
+  transition: border 0.1s linear;
+  font-family: inherit;
+
+  &:focus {
+    border: 1px solid #279bd8;
+  }
+
+  &::placeholder {
+    color: #767676;
+  }
+}
+
+.input-with-dropdown {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  position: relative;
+
+  .form-input {
+    padding-right: 40px;
+  }
+
+  .dropdown-btn {
+    position: absolute;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #767676;
+    font-size: 12px;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    padding: $spacing-sm $spacing-md;
-    border-top: 1px solid $border-color;
-  }
-
-  .total-count {
-    position: absolute;
-    left: $spacing-md;
-    font-size: $font-size-sm;
-    color: $text-light;
-  }
-
-  .pagination-center {
-    display: flex;
-    justify-content: center;
-    flex: 1;
   }
 }
 
-.btn-detail {
-  padding: $spacing-xs $spacing-md;
-  background-color: #279bd8;
-  color: #ffffff;
+.input-with-icon {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  position: relative;
+
+  .form-input {
+    padding-right: 40px;
+  }
+
+  .search-icon-btn,
+  .calendar-icon-btn {
+    position: absolute;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+
+    img {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+.auto-issue {
+  font-size: $font-size-base;
+  color: $text-light;
+  font-weight: 500;
+}
+
+.btn-upload-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background-color: #3e435e;
   border: none;
-  border-radius: $border-radius-sm;
-  font-size: $font-size-sm;
-  font-weight: 600;
   cursor: pointer;
-  height: 28px;
-  white-space: nowrap;
-  transition: background-color 0.2s;
+
+  .ico-upload {
+    width: 24px;
+    height: 24px;
+    display: block;
+  }
 
   &:hover {
-    background-color: #2196c4;
+    background-color: #3c4973;
+  }
+}
+
+.save-button-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.btn-save {
+  padding: $spacing-sm $spacing-xxl;
+  background-color: #555555;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: $font-size-base;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 100px;
+  height: 40px;
+  transition: background-color 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  &:hover {
+    background-color: #444444;
+  }
+
+  &:active {
+    background-color: #333333;
   }
 }
 </style>
-
