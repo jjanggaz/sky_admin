@@ -56,26 +56,14 @@
 
       <div class="table-wrapper">
         <DataTable
-          :columns="tableColumns"
+          :columns="tableColumnsWithoutPriority"
           :data="paginatedCampaignList"
           :loading="loading"
           :selectable="false"
-          :draggable="true"
+          :draggable="false"
           row-key="campaign_id"
           :maxHeight="'100%'"
-          @drop="handleRowDrop"
         >
-          <template #cell-priority="{ item, index }">
-            <div
-              class="priority-cell"
-              :draggable="true"
-              @dragstart="handlePriorityDragStart($event, item, index)"
-              @dragover.prevent
-              @drop.prevent="handlePriorityDrop($event, item, index)"
-            >
-              {{ item.priority }}
-            </div>
-          </template>
           <template #cell-action="{ item }">
             <button class="btn-detail" @click="openDetailModal(item)">상세정보</button>
           </template>
@@ -162,26 +150,14 @@
 
       <div class="table-wrapper">
         <DataTable
-          :columns="tableColumns"
+          :columns="tableColumnsWithoutPriority"
           :data="paginatedScheduledCampaignList"
           :loading="loading"
           :selectable="false"
-          :draggable="true"
+          :draggable="false"
           row-key="campaign_id"
           :maxHeight="'100%'"
-          @drop="handleScheduledRowDrop"
         >
-          <template #cell-priority="{ item, index }">
-            <div
-              class="priority-cell"
-              :draggable="true"
-              @dragstart="handleScheduledPriorityDragStart($event, item, index)"
-              @dragover.prevent
-              @drop.prevent="handleScheduledPriorityDrop($event, item, index)"
-            >
-              {{ item.priority }}
-            </div>
-          </template>
           <template #cell-action="{ item }">
             <button class="btn-detail" @click="openDetailModal(item)">상세정보</button>
           </template>
@@ -285,10 +261,9 @@ const paginatedScheduledCampaignList = computed(() => {
   return scheduledCampaignList.value.slice(start, end);
 });
 const campaignDetailRef = ref<InstanceType<typeof CampaignDetail> | null>(null);
-const selectedItems = ref<Record<string, unknown>[]>([]);
 const selectedCampaignItem = ref<Record<string, unknown> | null>(null);
 
-// 테이블 컬럼 설정
+// 테이블 컬럼 설정 (진행중 캠페인용 - 우선순위 포함)
 const tableColumns: TableColumn[] = [
   {
     key: "priority",
@@ -296,6 +271,61 @@ const tableColumns: TableColumn[] = [
     width: "100px",
     sortable: false,
   },
+  {
+    key: "campaign_id",
+    title: "캠페인 ID",
+    width: "120px",
+    sortable: false,
+  },
+  {
+    key: "campaign_name",
+    title: "캠페인명",
+    width: "200px",
+    sortable: false,
+  },
+  {
+    key: "start_date",
+    title: "시작일",
+    width: "120px",
+    sortable: false,
+    dateFormat: "YYYY-MM-DD",
+  },
+  {
+    key: "end_date",
+    title: "종료일",
+    width: "120px",
+    sortable: false,
+    dateFormat: "YYYY-MM-DD",
+  },
+  {
+    key: "manager_affiliation",
+    title: "담당자 소속",
+    width: "150px",
+    sortable: false,
+  },
+  {
+    key: "manager_name",
+    title: "담당자명",
+    width: "120px",
+    sortable: false,
+  },
+  {
+    key: "sms_send_date",
+    title: "문자발송일",
+    width: "120px",
+    sortable: false,
+    dateFormat: "YYYY-MM-DD",
+  },
+  {
+    key: "action",
+    title: "상세정보",
+    width: "100px",
+    sortable: false,
+  },
+];
+
+// 테이블 컬럼 설정 (지난 캠페인, 예정된 캠페인용 - 우선순위 제외)
+const tableColumnsWithoutPriority: TableColumn[] = [
   {
     key: "campaign_id",
     title: "캠페인 ID",
@@ -496,12 +526,6 @@ const handleScheduledPageChange = (page: number) => {
   scheduledCurrentPage.value = page;
 };
 
-// 모달 열기
-const openRegisterModal = () => {
-  selectedCampaignItem.value = null;
-  isRegisterModalOpen.value = true;
-};
-
 // 상세정보 모달 열기
 const openDetailModal = (item: Record<string, unknown>) => {
   selectedCampaignItem.value = item;
@@ -512,85 +536,6 @@ const openDetailModal = (item: Record<string, unknown>) => {
 const closeRegisterModal = () => {
   isRegisterModalOpen.value = false;
   selectedCampaignItem.value = null;
-};
-
-// 우선순위 변경 처리
-const handlePriorityChange = (item: Record<string, unknown>) => {
-  console.log("우선순위 변경:", item.campaign_id, item.priority);
-  // TODO: 우선순위 변경 로직 구현
-};
-
-// 우선순위 셀 드래그 시작
-const handlePriorityDragStart = (event: DragEvent, item: Record<string, unknown>, index: number) => {
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", String(index));
-    // 전역 상태에 저장 (DataTable의 drag & drop과 호환)
-    (window as any).__draggedRowIndex = index;
-    (window as any).__draggedRowItem = item;
-  }
-  // 드래그 중인 행 표시
-  const rowElement = (event.currentTarget as HTMLElement).closest("tr");
-  if (rowElement) {
-    rowElement.classList.add("dragging");
-  }
-};
-
-// 우선순위 셀 드롭 처리
-const handlePriorityDrop = (event: DragEvent, targetItem: Record<string, unknown>, targetIndex: number) => {
-  event.preventDefault();
-  event.stopPropagation();
-  
-  const draggedIndex = parseInt(event.dataTransfer?.getData("text/plain") || "-1");
-  if (draggedIndex === -1 || draggedIndex === targetIndex) return;
-
-  // 페이징된 리스트의 인덱스를 전체 리스트 인덱스로 변환
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  const actualDraggedIndex = start + draggedIndex;
-  const actualTargetIndex = start + targetIndex;
-
-  // 배열에서 항목 이동
-  const newList = [...campaignList.value];
-  const [draggedItem] = newList.splice(actualDraggedIndex, 1);
-  newList.splice(actualTargetIndex, 0, draggedItem);
-
-  // 우선순위 재설정
-  newList.forEach((item, index) => {
-    item.priority = index + 1;
-  });
-
-  campaignList.value = newList;
-  totalCount.value = newList.length;
-
-  // 전역 상태 정리
-  (window as any).__draggedRowIndex = undefined;
-  (window as any).__draggedRowItem = undefined;
-};
-
-// 행 드롭 처리 (DataTable의 drop 이벤트)
-const handleRowDrop = (
-  draggedItem: Record<string, unknown>,
-  draggedIndex: number,
-  targetItem: Record<string, unknown>,
-  targetIndex: number
-) => {
-  // 페이징된 리스트의 인덱스를 전체 리스트 인덱스로 변환
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  const actualDraggedIndex = start + draggedIndex;
-  const actualTargetIndex = start + targetIndex;
-
-  // 배열에서 항목 이동
-  const newList = [...campaignList.value];
-  const [movedItem] = newList.splice(actualDraggedIndex, 1);
-  newList.splice(actualTargetIndex, 0, movedItem);
-
-  // 우선순위 재설정
-  newList.forEach((item, index) => {
-    item.priority = index + 1;
-  });
-
-  campaignList.value = newList;
-  totalCount.value = newList.length;
 };
 
 // 진행중 캠페인 우선순위 셀 드래그 시작
@@ -675,103 +620,12 @@ const handleOngoingGridSave = () => {
   alert("저장되었습니다!");
 };
 
-// 예정된 캠페인 우선순위 셀 드래그 시작
-const handleScheduledPriorityDragStart = (event: DragEvent, item: Record<string, unknown>, index: number) => {
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", String(index));
-    // 전역 상태에 저장 (DataTable의 drag & drop과 호환)
-    (window as any).__draggedRowIndex = index;
-    (window as any).__draggedRowItem = item;
-    (window as any).__draggedListType = "scheduled";
-  }
-  // 드래그 중인 행 표시
-  const rowElement = (event.currentTarget as HTMLElement).closest("tr");
-  if (rowElement) {
-    rowElement.classList.add("dragging");
-  }
-};
-
-// 예정된 캠페인 우선순위 셀 드롭 처리
-const handleScheduledPriorityDrop = (event: DragEvent, targetItem: Record<string, unknown>, targetIndex: number) => {
-  event.preventDefault();
-  event.stopPropagation();
-  
-  const draggedIndex = parseInt(event.dataTransfer?.getData("text/plain") || "-1");
-  if (draggedIndex === -1 || draggedIndex === targetIndex) return;
-
-  // 배열에서 항목 이동
-  const newList = [...scheduledCampaignList.value];
-  const [draggedItem] = newList.splice(draggedIndex, 1);
-  newList.splice(targetIndex, 0, draggedItem);
-
-  // 우선순위 재설정
-  newList.forEach((item, index) => {
-    item.priority = index + 1;
-  });
-
-  scheduledCampaignList.value = newList;
-  scheduledTotalCount.value = newList.length;
-
-  // 전역 상태 정리
-  (window as any).__draggedRowIndex = undefined;
-  (window as any).__draggedRowItem = undefined;
-  (window as any).__draggedListType = undefined;
-};
-
-// 예정된 캠페인 행 드롭 처리 (DataTable의 drop 이벤트)
-const handleScheduledRowDrop = (
-  draggedItem: Record<string, unknown>,
-  draggedIndex: number,
-  targetItem: Record<string, unknown>,
-  targetIndex: number
-) => {
-  // 페이징된 리스트의 인덱스를 전체 리스트 인덱스로 변환
-  const start = (scheduledCurrentPage.value - 1) * itemsPerPage.value;
-  const actualDraggedIndex = start + draggedIndex;
-  const actualTargetIndex = start + targetIndex;
-
-  // 배열에서 항목 이동
-  const newList = [...scheduledCampaignList.value];
-  const [movedItem] = newList.splice(actualDraggedIndex, 1);
-  newList.splice(actualTargetIndex, 0, movedItem);
-
-  // 우선순위 재설정
-  newList.forEach((item, index) => {
-    item.priority = index + 1;
-  });
-
-  scheduledCampaignList.value = newList;
-  scheduledTotalCount.value = newList.length;
-};
 
 // 예정된 캠페인 그리드 저장 처리
 const handleScheduledGridSave = () => {
   // TODO: 예정된 캠페인 그리드 데이터 저장 로직 구현
   console.log("예정된 캠페인 그리드 데이터 저장", scheduledCampaignList.value);
   alert("저장되었습니다!");
-};
-
-// 삭제 처리
-const handleDelete = () => {
-  if (selectedItems.value.length === 0) {
-    alert("삭제할 항목을 선택해주세요.");
-    return;
-  }
-
-  const deleteCount = selectedItems.value.length;
-  const confirmMessage =
-    deleteCount === 1
-      ? "선택한 항목을 삭제하시겠습니까?"
-      : `선택한 ${deleteCount}개의 항목을 삭제하시겠습니까?`;
-
-  if (confirm(confirmMessage)) {
-    // TODO: 삭제 API 호출 로직 구현
-    console.log("삭제할 항목:", selectedItems.value);
-    selectedItems.value = [];
-    handleSearch(); // 목록 새로고침
-    alert("삭제되었습니다.");
-  }
 };
 
 // 저장 처리
