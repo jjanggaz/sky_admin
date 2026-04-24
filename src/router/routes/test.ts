@@ -8,6 +8,7 @@ const Obtm = () => import("@/views/test/Obtm.vue");
 const ObtmAssign = () => import("@/views/test/ObtmAssign.vue");
 const ObtmAssignCenter = () => import("@/views/test/ObtmAssignCenter.vue");
 const Counselor = () => import("@/views/test/Counselor.vue");
+const Sky = () => import("@/views/test/Sky.vue");
 
 export const testRoute = {
   path: "/test",
@@ -105,5 +106,16 @@ export const counselorRoute = {
     requiresAuth: false,
     titleKey: "pageTitles.counselor",
     icon: "counselor",
+  },
+};
+
+export const skyRoute = {
+  path: "/sky",
+  name: "Sky",
+  component: Sky,
+  meta: {
+    requiresAuth: false,
+    titleKey: "pageTitles.sky",
+    icon: "sky",
   },
 };

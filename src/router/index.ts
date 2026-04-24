@@ -11,9 +11,6 @@ const Login = () => import("@/views/auth/Login.vue");
 // 대시보드 페이지
 const Dashboard = () => import("@/views/dashboard/Dashboard.vue");
 
-// Sky 페이지
-const Sky = () => import("@/views/test/Sky.vue");
-
 // Main 페이지
 const Main = () => import("@/views/test/Main.vue");
 
@@ -29,7 +26,18 @@ import { machineRoute } from "./routes/machine";
 import { userRoute } from "./routes/user";
 import { vendorsRoute } from "./routes/vendors";
 import { codeRoute } from "./routes/code";
-import { testRoute, campaignRoute, campaignPriorityRoute, obtmStatusRoute, scisRoute, obtmRoute, obtmAssignRoute, obtmAssignCenterRoute, counselorRoute } from "./routes/test";
+import {
+  testRoute,
+  campaignRoute,
+  campaignPriorityRoute,
+  obtmStatusRoute,
+  scisRoute,
+  obtmRoute,
+  obtmAssignRoute,
+  obtmAssignCenterRoute,
+  counselorRoute,
+  skyRoute,
+} from "./routes/test";
 import { costRoute } from "./routes/cost";
 
 import { useAuthStore } from "../stores/authStore";
@@ -78,6 +86,7 @@ const baseRoutes: RouteRecordRaw[] = [
   obtmAssignRoute,
   obtmAssignCenterRoute,
   counselorRoute,
+  skyRoute,
 ];
 
 // 코드별 라우트 매핑
