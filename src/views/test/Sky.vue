@@ -24,6 +24,10 @@ const skyData = ref<Record<string, unknown>[]>([]);
 // 테이블 컬럼 설정 (API 응답에 따라 동적으로 생성)
 const tableColumns = ref<TableColumn[]>([]);
 
+const columnTitleMap: Record<string, string> = {
+  idAndName: "ID명",
+};
+
 // API 호출 함수
 const loadSkyData = async () => {
   loading.value = true;
@@ -41,16 +45,18 @@ const loadSkyData = async () => {
         ? result.response
         : result.response.data || result.response.items || [];
 
-      skyData.value = data;
+      // idAndName 필드를 id + name 조합으로 생성
+      skyData.value = data.map((item: Record<string, unknown>) => ({
+        ...item,
+        idAndName: `${item.id}_${item.name}`,
+      }));
 
-      // 데이터가 있으면 첫 번째 항목의 키를 기반으로 컬럼 생성
       if (data.length > 0) {
-        const firstItem = data[0];
-        const keys = Object.keys(firstItem);
+        const keys = [...Object.keys(data[0]), "idAndName"];
 
         tableColumns.value = keys.map((key) => ({
           key: key,
-          title: key,
+          title: columnTitleMap[key] ?? key,
           width: "150px",
           sortable: true,
         }));
